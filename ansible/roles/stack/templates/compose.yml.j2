@@ -11,7 +11,7 @@
 {%-     set _ = volumes.append(appdata_dir ~ '/' ~ name ~ ':' ~ svc.config_path | default('/config')) -%}
 {%-   endif -%}
 {%-   if svc.media | default(false) -%}
-{%-     set _ = volumes.append(media_root ~ ':' ~ media_container_path) -%}
+{%-     for src, dst in media_mounts.items() -%}{%- set _ = volumes.append(src ~ ':' ~ dst) -%}{%- endfor -%}
 {%-   endif -%}
 {%-   set _ = volumes.extend(svc.volumes | default([])) -%}
 {%-   set definition = {

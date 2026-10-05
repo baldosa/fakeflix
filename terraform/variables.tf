@@ -25,7 +25,7 @@ variable "proxmox_password" {
 }
 
 variable "proxmox_api_token" {
-  description = "Optional API token (USER@REALM!ID=SECRET). Only works if you drop the bind mount (media_host_path = null)."
+  description = "Optional API token (USER@REALM!ID=SECRET). Only works without bind mounts (media_mounts = {})."
   type        = string
   default     = null
   sensitive   = true
@@ -134,16 +134,16 @@ variable "ssh_public_key_file" {
 
 # --- Storage ------------------------------------------------------------------
 
-variable "media_host_path" {
-  description = "Directory on the Proxmox host holding Downloads/movies/series/music. null = no bind mount."
-  type        = string
-  default     = "/mnt/disk"
-}
-
-variable "media_mount_path" {
-  description = "Where media_host_path appears inside the container."
-  type        = string
-  default     = "/mnt/disk"
+variable "media_mounts" {
+  description = <<-EOT
+    Proxmox host directories bind-mounted into the container, as
+    { host_path = "path inside the container" }. Every folder in Ansible's
+    media_dirs must be under one of the container paths. {} = no bind mounts.
+  EOT
+  type        = map(string)
+  default = {
+    "/mnt/disk" = "/mnt/disk"
+  }
 }
 
 variable "tags" {

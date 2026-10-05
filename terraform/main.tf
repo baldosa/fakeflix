@@ -72,10 +72,10 @@ resource "proxmox_virtual_environment_container" "fakeflix" {
   }
 
   dynamic "mount_point" {
-    for_each = var.media_host_path == null ? [] : [1]
+    for_each = var.media_mounts
     content {
-      volume = var.media_host_path
-      path   = var.media_mount_path
+      volume = mount_point.key
+      path   = mount_point.value
     }
   }
 }
@@ -85,8 +85,7 @@ resource "local_file" "ansible_inventory" {
   filename        = "${path.module}/../ansible/inventory/hosts.yml"
   file_permission = "0644"
   content = templatefile("${path.module}/templates/inventory.yml.tftpl", {
-    hostname   = var.hostname
-    ip         = split("/", var.ipv4_address)[0]
-    media_root = var.media_mount_path
+    hostname = var.hostname
+    ip       = split("/", var.ipv4_address)[0]
   })
 }

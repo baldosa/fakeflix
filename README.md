@@ -34,16 +34,57 @@ ansible/
     stack/            renders compose.yml and runs it
 ```
 
+## Networking
+
+The container has **one static IP**, which you set in `terraform/terraform.tfvars`:
+
+```hcl
+ipv4_address = "192.168.1.50/24"   # CIDR
+ipv4_gateway = "192.168.1.1"
+bridge       = "vmbr0"             # optional: vlan_id = 20
+```
+
+Terraform also writes that IP into `ansible/inventory/hosts.yml`, which is how Ansible finds the box. Inside the container, Docker runs the apps on a private bridge network. Each app's port is published on the container's IP, so you reach them at `http://192.168.1.50:7878` and so on. Between themselves, the apps use their container names (`http://radarr:7878`). Ports are set per service in `services.yml`.
+
 ## Storage layout
 
-| Purpose   | Host / LXC path        | Path inside the apps |
-|-----------|------------------------|----------------------|
-| Downloads | `/mnt/disk/Downloads`  | `/data/Downloads`    |
-| Movies    | `/mnt/disk/movies`     | `/data/movies`       |
-| Series    | `/mnt/disk/series`     | `/data/series`       |
-| Music     | `/mnt/disk/music`      | `/data/music`        |
+Everything is configured in `ansible/group_vars/all/main.yml`:
 
-All of `/mnt/disk` is mounted as `/data` in each app container, not one mount per folder. That way imports from Downloads into movies/series are instant hardlinks or moves, not copies. You can change the folder names in `media_dirs` in `ansible/group_vars/all/main.yml`.
+```yaml
+media_dirs:                 # where the folders are on the Docker host (created if missing)
+  downloads: /mnt/disk/Downloads
+  movies: /mnt/disk/movies
+  series: /mnt/disk/series
+  music: /mnt/disk/music
+
+media_mounts:               # how they're mounted into the apps (host: container)
+  /mnt/disk: /data
+```
+
+With the defaults, the apps see the folders at `/data/Downloads`, `/data/movies`, `/data/series` and `/data/music`. Because one mount covers all the folders, imports from Downloads into the library are instant hardlinks or moves instead of copies. The deploy prints the in-app path of each folder. It fails early if a folder isn't under any mount.
+
+You can rename folders, add more (`anime: /mnt/disk/anime`) or put them on other disks. For example, movies on a second disk:
+
+```hcl
+# terraform.tfvars: bind-mount both disks into the LXC
+media_mounts = {
+  "/mnt/disk"  = "/mnt/disk"
+  "/mnt/disk2" = "/mnt/disk2"
+}
+```
+```yaml
+# group_vars/all/main.yml
+media_dirs:
+  downloads: /mnt/disk/Downloads
+  movies: /mnt/disk2/movies
+  series: /mnt/disk/series
+  music: /mnt/disk/music
+media_mounts:
+  /mnt/disk: /data
+  /mnt/disk2/movies: /data/movies
+```
+
+Hardlinks only work within a single disk. Movies on a different disk from Downloads will be copied on import.
 
 App configs and databases are stored in `/opt/fakeflix/appdata/<service>` inside the LXC.
 
@@ -63,12 +104,12 @@ $EDITOR terraform/terraform.tfvars
 make infra
 ```
 
-> Proxmox only lets **`root@pam` with a password** create bind mounts. An API token won't work for that part. If you'd rather use a token, set `media_host_path = null` and add the mount point by hand.
+> Proxmox only lets **`root@pam` with a password** create bind mounts. An API token won't work for that part. If you'd rather use a token, set `media_mounts = {}` and add the mount points by hand.
 
 **Permissions (unprivileged LXC):** container UID 1000 maps to host UID 101000. Run this once on the Proxmox host:
 
 ```sh
-chown -R 101000:101000 /mnt/disk/Downloads /mnt/disk/movies /mnt/disk/series /mnt/disk/music
+chown -R 101000:101000 /mnt/disk/Downloads /mnt/disk/movies /mnt/disk/series /mnt/disk/music   # your media_dirs
 ```
 
 If you'd rather not change ownership, set `unprivileged = false` in `terraform.tfvars`. Changing this recreates the container.
@@ -97,7 +138,7 @@ Images follow the `latest` tag by default. To pin a version, see below.
 
 - **qBittorrent:** the first-start password is in `docker logs qbittorrent`. Set the default save path to `/data/Downloads`.
 - **Prowlarr:** add FlareSolverr (Settings → Indexers → `http://flaresolverr:8191`). Add the Radarr and Sonarr apps using `http://radarr:7878` and `http://sonarr:8989`.
-- **Radarr / Sonarr:** download client = `qbittorrent`, port `8080`. Root folders: `/data/movies` and `/data/series`.
+- **Radarr / Sonarr:** download client = `qbittorrent`, port `8080`. Root folders: the in-app paths printed by the deploy (default `/data/movies` and `/data/series`).
 - **Bazarr:** connect to `http://sonarr:8989` and `http://radarr:7878`.
 - **Seerr:** connect to your media server, then to Radarr and Sonarr by hostname.
 
@@ -110,7 +151,7 @@ stack_extra_services:
   jellyfin:
     image: lscr.io/linuxserver/jellyfin
     linuxserver: true      # adds PUID/PGID/TZ/UMASK
-    media: true            # mounts /mnt/disk at /data
+    media: true            # gets all media_mounts
     ports: ["8096:8096"]
     extra:                 # any raw compose keys
       devices: ["/dev/dri:/dev/dri"]

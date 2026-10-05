@@ -8,7 +8,7 @@
 #   linuxserver  bool, inject PUID/PGID/TZ/UMASK (linuxserver.io images)
 #   appdata      bool, default true: create {{ appdata_dir }}/<name> and mount it at `config_path`
 #   config_path  container path for the appdata dir, default /config
-#   media        bool, mount media_root at {{ media_container_path }}
+#   media        bool, mount every entry of media_mounts (see main.yml)
 #   ports        list of "host:container[/proto]"
 #   environment  dict of extra env vars
 #   volumes      list of extra volumes

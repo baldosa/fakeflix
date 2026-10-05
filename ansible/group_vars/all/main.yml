@@ -9,20 +9,27 @@ puid: 1000
 pgid: 1000
 umask: "002"
 
-# Where the media disk is mounted on the Docker host.
-media_root: /mnt/disk
-
-# Sub-directories of media_root. Created if missing.
+# Media folders on the Docker host (absolute paths, created if missing).
+# Put them wherever you like - different names, different disks, extra folders.
 media_dirs:
-  downloads: Downloads
-  movies: movies
-  series: series
-  music: music
+  downloads: /mnt/disk/Downloads
+  movies: /mnt/disk/movies
+  series: /mnt/disk/series
+  music: /mnt/disk/music
 
-# media_root is mounted into the containers as /data, so inside every app the
-# paths are /data/Downloads, /data/movies, /data/series, /data/music.
-# A single mount (instead of one per folder) keeps hardlinks/atomic moves working.
-media_container_path: /data
+# How media reaches the apps: host_path: container_path, mounted into every
+# service with `media: true`. Every folder in media_dirs must live under one
+# of these.
+#
+# Default: the common parent mounted once at /data, so the apps see
+# /data/Downloads, /data/movies, ... Downloads and library on the same mount =
+# hardlinks / instant moves. If your folders are on different disks, add one
+# entry per disk, e.g.
+#   media_mounts:
+#     /mnt/disk: /data
+#     /mnt/disk2/movies: /data/movies
+media_mounts:
+  /mnt/disk: /data
 
 # Service configuration/databases live here (one sub-directory per service).
 appdata_dir: /opt/fakeflix/appdata

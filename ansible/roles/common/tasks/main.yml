@@ -13,24 +13,64 @@
   community.general.timezone:
     name: "{{ timezone }}"
 
-- name: Check that the media disk is there
+- name: Check that the media mounts exist
   ansible.builtin.stat:
-    path: "{{ media_root }}"
-  register: common_media_root_stat
+    path: "{{ item }}"
+  register: common_media_mount_stat
+  loop: "{{ media_mounts.keys() | list }}"
 
-- name: Fail if the media disk is missing
+- name: Fail if a media mount is missing
   ansible.builtin.assert:
-    that: common_media_root_stat.stat.exists and common_media_root_stat.stat.isdir
+    that: item.stat.exists and item.stat.isdir
     fail_msg: >-
-      {{ media_root }} does not exist on {{ inventory_hostname }}.
+      {{ item.item }} does not exist on {{ inventory_hostname }}.
       Mount the disk (or fix the LXC bind mount) before running this playbook.
     quiet: true
+  loop: "{{ common_media_mount_stat.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Map media folders to their path inside the apps
+  ansible.builtin.set_fact:
+    common_media_app_paths: >-
+      {{ common_media_app_paths | default({})
+         | combine({item.key: (_mount.value ~ item.value[_mount.key | length:]) if _mount else none}) }}
+  vars:
+    _parts: "{{ item.value.strip('/').split('/') }}"
+    _ancestors: >-
+      {% for i in range(_parts | length, 0, -1) %}/{{ _parts[:i] | join('/') }}{{ '' if loop.last else ',' }}{% endfor %}
+    _mount: >-
+      {{ media_mounts | dict2items | selectattr('key', 'in', _ancestors.split(','))
+         | sort(attribute='key', reverse=True) | first | default(none) }}
+  loop: "{{ media_dirs | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Fail if a media folder is outside every media mount
+  ansible.builtin.assert:
+    that: common_media_app_paths[item.key] is not none
+    fail_msg: >-
+      media_dirs.{{ item.key }} ({{ item.value }}) is not under any of
+      media_mounts {{ media_mounts.keys() | list }}, so the apps could not see it.
+    quiet: true
+  loop: "{{ media_dirs | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
 
 - name: Create media directories
   ansible.builtin.file:
-    path: "{{ media_root }}/{{ item }}"
+    path: "{{ item.value }}"
     state: directory
     owner: "{{ puid }}"
     group: "{{ pgid }}"
     mode: "0775"
-  loop: "{{ media_dirs.values() | list }}"
+  loop: "{{ media_dirs | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}: {{ item.value }}"
+
+- name: Media paths to use inside the apps
+  ansible.builtin.debug:
+    msg: "{{ item.key }}: {{ media_dirs[item.key] }} -> {{ item.value }}"
+  loop: "{{ common_media_app_paths | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"

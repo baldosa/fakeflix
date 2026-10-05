@@ -12,7 +12,12 @@ rootfs_size_gb   = 32
 cores            = 4
 memory_mb        = 4096
 
-# Directory on the Proxmox host with Downloads/, movies/, series/, music/
-media_host_path = "/mnt/disk"
+# Proxmox host dirs to bind-mount into the container: { host_path = container_path }.
+# Add one line per disk if your media is spread out; then point media_dirs /
+# media_mounts in ansible/group_vars/all/main.yml at the container paths.
+media_mounts = {
+  "/mnt/disk" = "/mnt/disk"
+  # "/mnt/disk2" = "/mnt/disk2"
+}
 
 ssh_public_key_file = "~/.ssh/id_ed25519.pub"
