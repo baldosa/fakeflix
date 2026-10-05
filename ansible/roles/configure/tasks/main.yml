@@ -8,15 +8,22 @@
     configure_local: "{{ stack_enabled_services | service_urls('127.0.0.1') }}"
     # Between containers.
     configure_internal: "{{ stack_enabled_services | service_urls }}"
+    # What a browser should use: through the proxy if there is one, else direct.
+    configure_public: >-
+      {{ dict(stack_enabled_services | map(attribute='key')
+         | zip(stack_enabled_services | map(attribute='value')
+               | map('public_url', proxy_domain, proxy_scheme)))
+         if 'traefik' in stack_enabled_services | map(attribute='key')
+         else stack_enabled_services | service_urls(ansible_host | default(inventory_hostname)) }}
     configure_paths: "{{ dict(media_dirs.keys() | zip(media_dirs.values() | map('media_app_path', media_mounts))) }}"
 
 - name: Configure qBittorrent
   ansible.builtin.include_tasks: qbittorrent.yml
   when: "'qbittorrent' in configure_enabled"
 
-- name: Configure Radarr / Sonarr / Lidarr
+- name: Configure Radarr / Sonarr
   ansible.builtin.include_tasks: arr.yml
-  loop: "{{ ['radarr', 'sonarr', 'lidarr'] | intersect(configure_enabled) }}"
+  loop: "{{ ['radarr', 'sonarr'] | intersect(configure_enabled) }}"
   loop_control:
     loop_var: arr_app
 

@@ -1,22 +1,19 @@
-- name: Bazarr | wait for config file
-  ansible.builtin.stat:
-    path: "{{ appdata_dir }}/bazarr/config/config.yaml"
-  register: configure_bazarr_conf
-  until: configure_bazarr_conf.stat.exists
-  retries: "{{ configure_wait_retries }}"
-  delay: 5
-
-- name: Bazarr | read API key
-  ansible.builtin.slurp:
-    src: "{{ configure_bazarr_conf.stat.path }}"
-  register: configure_bazarr_raw
+- name: Bazarr | API key and base path
+  ansible.builtin.include_tasks: patch_file.yml
+  vars:
+    patch_service: bazarr
+    patch_path: "{{ appdata_dir }}/bazarr/config/config.yaml"
+    patch_format: yaml
+    patch_data:
+      auth: { apikey: "{{ api_keys.bazarr }}" }
+      general: { base_url: "{{ stack_services.bazarr | base_path }}" }
 
 - name: Bazarr | settings
   ansible.builtin.set_fact:
     configure_bazarr:
       url: "{{ configure_local.bazarr }}"
       headers:
-        X-API-KEY: "{{ (configure_bazarr_raw.content | b64decode | from_yaml).auth.apikey }}"
+        X-API-KEY: "{{ api_keys.bazarr }}"
     configure_bazarr_desired: >-
       {{ {'general': {'enabled_providers': bazarr_providers,
                       'serie_default_enabled': true, 'serie_default_profile': 1,
@@ -24,10 +21,10 @@
                       'use_sonarr': 'sonarr' in configure_enabled,
                       'use_radarr': 'radarr' in configure_enabled}}
          | combine({'sonarr': {'ip': 'sonarr', 'port': stack_services.sonarr | container_port | int,
-                               'apikey': api_keys.sonarr, 'base_url': ''}}
+                               'apikey': api_keys.sonarr, 'base_url': stack_services.sonarr | base_path}}
                    if 'sonarr' in configure_enabled else {})
          | combine({'radarr': {'ip': 'radarr', 'port': stack_services.radarr | container_port | int,
-                               'apikey': api_keys.radarr, 'base_url': ''}}
+                               'apikey': api_keys.radarr, 'base_url': stack_services.radarr | base_path}}
                    if 'radarr' in configure_enabled else {}) }}
 
 - name: Bazarr | wait for API

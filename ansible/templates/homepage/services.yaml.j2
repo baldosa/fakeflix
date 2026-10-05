@@ -1,0 +1,28 @@
+{#- One tile per proxied service with a `web.homepage` entry, plus homepage_links. -#}
+{%- set internal = stack_enabled_services | service_urls -%}
+{%- set groups = {} -%}
+{%- for item in stack_enabled_services if item.value.web.homepage is defined -%}
+{%-   set hp = item.value.web.homepage -%}
+{%-   set tile = {'href': item.value | public_url(proxy_domain, proxy_scheme),
+                  'icon': hp.icon | default(item.key ~ '.png'),
+                  'description': hp.description | default('')} -%}
+{%-   if hp.widget is defined -%}
+{%-     set widget = {'type': hp.widget, 'url': internal[item.key] | default('http://' ~ item.key)} -%}
+{%-     if item.key in api_keys -%}{%- set _ = widget.update({'key': api_keys[item.key]}) -%}{%- endif -%}
+{%-     if hp.widget == 'qbittorrent' -%}{%- set _ = widget.update({'username': '', 'password': ''}) -%}{%- endif -%}
+{%-     set _ = tile.update({'widget': widget}) -%}
+{%-   endif -%}
+{%-   set group = hp.group | default('Services') -%}
+{%-   set _ = groups.update({group: groups.get(group, []) + [{hp.name | default(item.key | capitalize): tile}]}) -%}
+{%- endfor -%}
+{%- for link in homepage_links -%}
+{%-   set group = link.group | default('Links') -%}
+{%-   set _ = groups.update({group: groups.get(group, []) + [{link.name: link | dict2items | rejectattr('key', 'in', ['name', 'group']) | items2dict}]}) -%}
+{%- endfor -%}
+{%- set order = ['Watch', 'Library', 'Downloads'] -%}
+{%- set out = [] -%}
+{%- for g in order | select('in', groups) | list + groups.keys() | reject('in', order) | list -%}
+{%-   set _ = out.append({g: groups[g]}) -%}
+{%- endfor -%}
+# {{ ansible_managed }}
+{{ out | to_nice_yaml(indent=2, sort_keys=False) }}

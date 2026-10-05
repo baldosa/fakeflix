@@ -14,6 +14,10 @@
       - { section: Preferences, option: 'WebUI\AuthSubnetWhitelistEnabled', value: "true" }
       - { section: Preferences, option: 'WebUI\AuthSubnetWhitelist', value: "{{ qbittorrent_auth_bypass_subnets | join(', ') }}" }
       - { section: Preferences, option: 'WebUI\HostHeaderValidation', value: "false" }
+      # Behind Traefik: trust its X-Forwarded-For so the login bypass applies to
+      # the real client address, not the proxy's.
+      - { section: Preferences, option: 'WebUI\ReverseProxySupportEnabled', value: "true" }
+      - { section: Preferences, option: 'WebUI\TrustedReverseProxiesList', value: "172.16.0.0/12" }
       - { section: BitTorrent, option: 'Session\DefaultSavePath', value: "{{ configure_paths.downloads }}" }
       - { section: BitTorrent, option: 'Session\TempPathEnabled', value: "false" }
 

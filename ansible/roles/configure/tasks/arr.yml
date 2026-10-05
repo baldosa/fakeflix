@@ -1,12 +1,12 @@
-# Radarr, Sonarr or Lidarr (arr_app): root folder + qBittorrent.
+# Radarr or Sonarr (arr_app): root folder + qBittorrent.
 - name: "{{ arr_app }} | settings"
   ansible.builtin.set_fact:
     configure_app:
       url: "{{ configure_local[arr_app] }}"
       key: "{{ api_keys[arr_app] }}"
-      api: "{{ 'v1' if arr_app == 'lidarr' else 'v3' }}"
-      root: "{{ configure_paths[{'radarr': 'movies', 'sonarr': 'series', 'lidarr': 'music'}[arr_app]] }}"
-      category_field: "{{ {'radarr': 'movieCategory', 'sonarr': 'tvCategory', 'lidarr': 'musicCategory'}[arr_app] }}"
+      api: v3
+      root: "{{ configure_paths[{'radarr': 'movies', 'sonarr': 'series'}[arr_app]] }}"
+      category_field: "{{ {'radarr': 'movieCategory', 'sonarr': 'tvCategory'}[arr_app] }}"
 
 - name: "{{ arr_app }} | wait for API"
   ansible.builtin.include_tasks: wait_api.yml
@@ -27,11 +27,7 @@
     method: POST
     headers: { X-Api-Key: "{{ configure_app.key }}" }
     body_format: json
-    body: >-
-      {{ {'path': configure_app.root}
-         | combine({'name': 'Music', 'defaultQualityProfileId': 1, 'defaultMetadataProfileId': 1,
-                    'defaultMonitorOption': 'all', 'defaultNewItemMonitorOption': 'all', 'defaultTags': []}
-                   if arr_app == 'lidarr' else {}) }}
+    body: { path: "{{ configure_app.root }}" }
     status_code: [200, 201]
   changed_when: true
   when: configure_app.root not in (configure_rootfolders.json | map(attribute='path') | map('regex_replace', '/$', '') | list)

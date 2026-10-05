@@ -10,12 +10,12 @@ fakeflix_secrets_dir: "{{ playbook_dir }}/secrets/{{ inventory_hostname }}"
 api_keys:
   radarr: "{{ lookup('ansible.builtin.password', fakeflix_secrets_dir ~ '/radarr_api_key chars=hexdigits length=32') | lower }}"
   sonarr: "{{ lookup('ansible.builtin.password', fakeflix_secrets_dir ~ '/sonarr_api_key chars=hexdigits length=32') | lower }}"
-  lidarr: "{{ lookup('ansible.builtin.password', fakeflix_secrets_dir ~ '/lidarr_api_key chars=hexdigits length=32') | lower }}"
   prowlarr: "{{ lookup('ansible.builtin.password', fakeflix_secrets_dir ~ '/prowlarr_api_key chars=hexdigits length=32') | lower }}"
+  bazarr: "{{ lookup('ansible.builtin.password', fakeflix_secrets_dir ~ '/bazarr_api_key chars=hexdigits length=32') | lower }}"
   seerr: "{{ lookup('ansible.builtin.password', fakeflix_secrets_dir ~ '/seerr_api_key chars=ascii_letters,digits length=40') }}"
 
 # --- Logins -----------------------------------------------------------------
-# Radarr/Sonarr/Lidarr/Prowlarr: "External" = no login page at all.
+# Radarr/Sonarr/Prowlarr: "External" = no login page at all.
 # Use "Forms" to get a login page back (you'll be asked to create a user).
 arr_auth_method: External
 
@@ -30,7 +30,6 @@ qbittorrent_auth_bypass_subnets:
 download_categories:
   radarr: movies
   sonarr: series
-  lidarr: music
 
 # --- Prowlarr -----------------------------------------------------------------
 # Indexers to add. `name` is the indexer's definition name in Prowlarr

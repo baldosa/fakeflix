@@ -1,0 +1,50 @@
+# Merge settings into an app's own JSON/YAML config file. Apps keep their
+# config in memory and write it back, so the edit happens while stopped.
+#   patch_service   compose service name
+#   patch_path      file on the Docker host
+#   patch_format    json | yaml
+#   patch_data      dict deep-merged into the file
+- name: "{{ patch_service }} | wait for {{ patch_path | basename }}"
+  ansible.builtin.stat:
+    path: "{{ patch_path }}"
+  register: configure_patch_stat
+  until: configure_patch_stat.stat.exists
+  retries: "{{ configure_wait_retries }}"
+  delay: 5
+
+- name: "{{ patch_service }} | read {{ patch_path | basename }}"
+  ansible.builtin.slurp:
+    src: "{{ patch_path }}"
+  register: configure_patch_raw
+
+- name: "{{ patch_service }} | parse {{ patch_path | basename }}"
+  ansible.builtin.set_fact:
+    configure_patch_current: >-
+      {{ (configure_patch_raw.content | b64decode | from_json) if patch_format == 'json'
+         else (configure_patch_raw.content | b64decode | from_yaml) }}
+
+- name: "{{ patch_service }} | apply {{ patch_path | basename }}"
+  when: configure_force | bool or configure_patch_current | dict_differs(patch_data)
+  block:
+    - name: "{{ patch_service }} | stop"
+      community.docker.docker_container:
+        name: "{{ patch_service }}"
+        state: stopped
+
+    - name: "{{ patch_service }} | write {{ patch_path | basename }}"
+      ansible.builtin.copy:
+        content: >-
+          {{ (configure_patch_current | combine(patch_data, recursive=True) | to_nice_json(indent=1))
+             if patch_format == 'json'
+             else (configure_patch_current | combine(patch_data, recursive=True) | to_nice_yaml(indent=2)) }}
+        dest: "{{ patch_path }}"
+        owner: "{{ puid }}"
+        group: "{{ pgid }}"
+        mode: "0644"
+
+    - name: "{{ patch_service }} | start"
+      community.docker.docker_compose_v2:
+        project_src: "{{ stack_dir }}"
+        project_name: "{{ stack_name }}"
+        services: ["{{ patch_service }}"]
+        state: present

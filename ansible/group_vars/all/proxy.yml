@@ -1,0 +1,44 @@
+# ---------------------------------------------------------------------------
+# Reverse proxy (Traefik) + homepage.
+#
+#   http(s)://<proxy_domain>/             homepage linking to everything
+#   http(s)://<proxy_domain>/radarr       ... one folder per service
+#   http(s)://requests.<proxy_domain>     Seerr (can't run in a folder)
+#
+# Point a DNS record for proxy_domain AND *.proxy_domain (or at least
+# requests.proxy_domain) at the container's IP.
+# ---------------------------------------------------------------------------
+
+proxy_domain: fakeflix.meme.ar
+
+# false = plain HTTP (fine on a LAN).
+# true  = HTTPS with Let's Encrypt certificates, HTTP redirects to HTTPS.
+proxy_https: false
+proxy_acme_email: ""
+# http: port 80 must be reachable from the internet for the domain.
+# dns:  works on a LAN-only box; needs your DNS provider's API credentials.
+proxy_acme_challenge: http
+# Provider code from https://doc.traefik.io/traefik/https/acme/#providers
+proxy_acme_dns_provider: ""          # e.g. cloudflare
+proxy_acme_env: {}                   # e.g. {CF_DNS_API_TOKEN: "..."}
+
+# Optional HTTP basic auth in front of everything (htpasswd lines, generate
+# with `htpasswd -nbB user password`). Empty = no extra login.
+proxy_basic_auth_users: []
+
+proxy_scheme: "{{ 'https' if proxy_https | bool else 'http' }}"
+
+# --- Homepage -----------------------------------------------------------------
+homepage_title: Fakeflix
+# Extra tiles for things that don't run in this stack.
+homepage_links: []
+#  - name: Jellyfin
+#    group: Watch
+#    href: http://192.168.1.20:8096
+#    icon: jellyfin.png
+#    description: Movies & shows
+#    widget:                     # optional, live stats
+#      type: jellyfin
+#      url: http://192.168.1.20:8096
+#      key: <jellyfin API key>   # Dashboard -> API Keys
+#      enableBlocks: true

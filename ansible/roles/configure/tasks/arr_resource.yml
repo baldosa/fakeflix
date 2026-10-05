@@ -1,5 +1,5 @@
 # Create or update a "provider" resource (download client, application,
-# indexer, indexer proxy, ...) in a Servarr app (Radarr/Sonarr/Lidarr/Prowlarr),
+# indexer, indexer proxy, ...) in a Servarr app (Radarr/Sonarr/Prowlarr),
 # matched by name. Starts from the app's own schema, so only the values that
 # matter need to be given.
 #

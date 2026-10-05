@@ -6,6 +6,7 @@
 {%-   set env = {} -%}
 {%-   if svc.linuxserver | default(false) -%}{%- set _ = env.update(linuxserver_env) -%}{%- endif -%}
 {%-   set _ = env.update(svc.environment | default({})) -%}
+{%-   if svc.web.base_env is defined -%}{%- set _ = env.update({svc.web.base_env: svc | base_path}) -%}{%- endif -%}
 {%-   set volumes = [] -%}
 {%-   if svc.appdata | default(true) -%}
 {%-     set _ = volumes.append(appdata_dir ~ '/' ~ name ~ ':' ~ svc.config_path | default('/config')) -%}

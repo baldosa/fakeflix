@@ -22,6 +22,18 @@
     label: "{{ item.key }}"
   when: item.value.appdata | default(true)
 
+- name: Render service config files
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/templates/{{ item.1.src }}"
+    dest: "{{ appdata_dir }}/{{ item.0.key }}/{{ item.1.dest }}"
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: "0644"
+  loop: "{{ stack_enabled_services | subelements('value.templates', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.key }}/{{ item.1.dest }}"
+  register: stack_templates
+
 - name: Render compose file
   ansible.builtin.template:
     src: compose.yml.j2
@@ -40,9 +52,26 @@
   vars:
     _only: "{{ stack_only.split(',') if stack_only is string else stack_only }}"
 
+- name: Restart services whose config files changed
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_dir }}"
+    project_name: "{{ stack_name }}"
+    services: "{{ stack_templates.results | select('changed') | map(attribute='item.0.key') | unique }}"
+    state: restarted
+  when: stack_templates.results | select('changed') | list | length > 0
+
 - name: Service URLs
   ansible.builtin.debug:
-    msg: "{{ item.key }}: http://{{ ansible_host | default(inventory_hostname) }}:{{ item.value.ports[0].split(':')[0] }}"
-  loop: "{{ stack_enabled_services | selectattr('value.ports', 'defined') | list }}"
+    msg: >-
+      {{ item.key }}:
+      {{ (item.value | public_url(proxy_domain, proxy_scheme)) if stack_proxied and item.value.web is defined else '' }}
+      {{ ('(direct: http://' ~ (ansible_host | default(inventory_hostname)) ~ ':' ~ (item.value | host_port)
+          ~ (item.value | base_path) ~ ')') if item.value.ports is defined else '' }}
+  loop: >-
+    {{ stack_enabled_services
+       | selectattr('value.ports', 'defined')
+       | union(stack_enabled_services | selectattr('value.web', 'defined')) }}
   loop_control:
     label: "{{ item.key }}"
+  vars:
+    stack_proxied: "{{ 'traefik' in stack_enabled_services | map(attribute='key') }}"

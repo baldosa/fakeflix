@@ -54,10 +54,10 @@
         arr_body:
           tags: "{{ [configure_flaresolverr_tag | int] }}"
 
-# --- Push indexers to Radarr/Sonarr/Lidarr -------------------------------------
+# --- Push indexers to Radarr/Sonarr ---------------------------------------------
 - name: Prowlarr | connect apps
   ansible.builtin.include_tasks: arr_resource.yml
-  loop: "{{ ['radarr', 'sonarr', 'lidarr'] | intersect(configure_enabled) }}"
+  loop: "{{ ['radarr', 'sonarr'] | intersect(configure_enabled) }}"
   loop_control:
     loop_var: prowlarr_app
   vars:

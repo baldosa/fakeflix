@@ -1,0 +1,38 @@
+{#- One router per catalog service with a `web` block. -#}
+{%- set routers = {} -%}
+{%- set services = {} -%}
+{%- set middlewares = {} -%}
+{%- if proxy_basic_auth_users -%}
+{%-   set _ = middlewares.update({'auth': {'basicAuth': {'users': proxy_basic_auth_users}}}) -%}
+{%- endif -%}
+{%- for item in stack_enabled_services if item.value.web is defined and item.key != 'traefik' -%}
+{%-   set name = item.key -%}
+{%-   set web = item.value.web -%}
+{%-   set path = (web.path | default('/')).rstrip('/') -%}
+{%-   if web.subdomain is defined -%}
+{%-     set rule = 'Host(`' ~ web.subdomain ~ '.' ~ proxy_domain ~ '`)' -%}
+{%-   elif path -%}
+{%-     set rule = 'Host(`' ~ proxy_domain ~ '`) && PathPrefix(`' ~ path ~ '`)' -%}
+{%-   else -%}
+{%-     set rule = 'Host(`' ~ proxy_domain ~ '`)' -%}
+{%-   endif -%}
+{%-   set mws = ['auth'] if proxy_basic_auth_users else [] -%}
+{%-   if web.strip_prefix | default(false) and path and web.subdomain is not defined -%}
+{#-     /qbittorrent -> /qbittorrent/ so the app's relative links resolve -#}
+{%-     set _ = middlewares.update({
+          name ~ '-slash': {'redirectRegex': {'regex': '^(https?://[^/]+' ~ path ~ ')$', 'replacement': '${1}/', 'permanent': true}},
+          name ~ '-strip': {'stripPrefix': {'prefixes': [path]}}}) -%}
+{%-     set mws = mws + [name ~ '-slash', name ~ '-strip'] -%}
+{%-   endif -%}
+{%-   set router = {'rule': rule, 'service': name,
+                    'entryPoints': ['websecure' if proxy_https | bool else 'web']} -%}
+{%-   if mws -%}{%- set _ = router.update({'middlewares': mws}) -%}{%- endif -%}
+{%-   if proxy_https | bool -%}{%- set _ = router.update({'tls': {'certResolver': 'letsencrypt'}}) -%}{%- endif -%}
+{%-   set port = (item.value | container_port) if item.value.ports is defined else (web.port | default(3000)) -%}
+{%-   set _ = routers.update({name: router}) -%}
+{%-   set _ = services.update({name: {'loadBalancer': {'servers': [{'url': 'http://' ~ name ~ ':' ~ port}]}}}) -%}
+{%- endfor -%}
+{%- set http = {'routers': routers, 'services': services} -%}
+{%- if middlewares -%}{%- set _ = http.update({'middlewares': middlewares}) -%}{%- endif -%}
+# {{ ansible_managed }}
+{{ {'http': http} | to_nice_yaml(indent=2, sort_keys=False) }}

@@ -40,20 +40,42 @@ def container_port(service):
     return _split_port(service["ports"][0])[1]
 
 
+def base_path(service):
+    """Path prefix the app itself serves under ("" if none). Apps behind a
+    stripping proxy or on their own subdomain serve at the root."""
+    web = service.get("web") or {}
+    path = (web.get("path") or "").rstrip("/")
+    if not path or web.get("strip_prefix") or web.get("subdomain"):
+        return ""
+    return path
+
+
 def service_urls(services, host=None):
     """{name: url} for catalog items (dict2items form) that publish a port.
     With ``host``: URL via the published port on that host. Without: the
-    container-to-container URL (http://<name>:<container port>)."""
+    container-to-container URL (http://<name>:<container port>). Both include
+    the app's base path."""
     urls = {}
     for item in services:
         svc = item["value"]
         if not svc.get("ports"):
             continue
         if host:
-            urls[item["key"]] = "http://%s:%s" % (host, host_port(svc))
+            urls[item["key"]] = "http://%s:%s%s" % (host, host_port(svc), base_path(svc))
         else:
-            urls[item["key"]] = "http://%s:%s" % (item["key"], container_port(svc))
+            urls[item["key"]] = "http://%s:%s%s" % (item["key"], container_port(svc), base_path(svc))
     return urls
+
+
+def public_url(service, domain, scheme="http"):
+    """URL of a catalog service through the reverse proxy, or None."""
+    web = service.get("web")
+    if not web:
+        return None
+    if web.get("subdomain"):
+        return "%s://%s.%s" % (scheme, web["subdomain"], domain)
+    path = (web.get("path") or "/").rstrip("/")
+    return "%s://%s%s" % (scheme, domain, path or "")
 
 
 def arr_pick_schema(schemas, implementation=None, match=None):
@@ -167,6 +189,8 @@ class FilterModule(object):
             "host_port": host_port,
             "container_port": container_port,
             "service_urls": service_urls,
+            "base_path": base_path,
+            "public_url": public_url,
             "arr_pick_schema": arr_pick_schema,
             "arr_apply": arr_apply,
             "arr_differs": arr_differs,

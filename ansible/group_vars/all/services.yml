@@ -13,6 +13,15 @@
 #   environment  dict of extra env vars
 #   volumes      list of extra volumes
 #   extra        dict merged verbatim into the compose service (depends_on, devices, user, ...)
+#   templates    files rendered into the appdata dir before start, restarting the
+#                service when they change: [{src: <ansible/templates/...>, dest: <file>}]
+#   web          how the reverse proxy serves it (omit = not proxied):
+#                  path          folder on proxy_domain, e.g. /radarr ("/" = the root)
+#                  subdomain     serve at <subdomain>.<proxy_domain> instead of a folder
+#                  base_env      env var that tells the app its base path
+#                  strip_prefix  true for apps that can't be told their base path
+#                  port          container port, if the service publishes none
+#                  homepage      tile: {name, group, description, icon, widget: <homepage widget type>}
 #
 # Don't edit this file to customise: use the two dicts below (or host_vars).
 # ---------------------------------------------------------------------------
@@ -29,6 +38,10 @@ stack_default_services:
     environment:
       WEBUI_PORT: "8080"
       TORRENTING_PORT: "6881"
+    web:
+      path: /qbittorrent
+      strip_prefix: true
+      homepage: { name: qBittorrent, group: Downloads, description: Torrents, widget: qbittorrent }
 
   prowlarr:
     image: lscr.io/linuxserver/prowlarr
@@ -39,6 +52,10 @@ stack_default_services:
       PROWLARR__AUTH__APIKEY: "{{ api_keys.prowlarr }}"
       PROWLARR__AUTH__METHOD: "{{ arr_auth_method }}"
       PROWLARR__AUTH__REQUIRED: DisabledForLocalAddresses
+    web:
+      path: /prowlarr
+      base_env: PROWLARR__SERVER__URLBASE
+      homepage: { group: Downloads, description: Indexers, widget: prowlarr }
 
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr
@@ -59,6 +76,10 @@ stack_default_services:
       RADARR__AUTH__APIKEY: "{{ api_keys.radarr }}"
       RADARR__AUTH__METHOD: "{{ arr_auth_method }}"
       RADARR__AUTH__REQUIRED: DisabledForLocalAddresses
+    web:
+      path: /radarr
+      base_env: RADARR__SERVER__URLBASE
+      homepage: { group: Library, description: Movies, widget: radarr }
 
   sonarr:
     image: lscr.io/linuxserver/sonarr
@@ -70,6 +91,10 @@ stack_default_services:
       SONARR__AUTH__APIKEY: "{{ api_keys.sonarr }}"
       SONARR__AUTH__METHOD: "{{ arr_auth_method }}"
       SONARR__AUTH__REQUIRED: DisabledForLocalAddresses
+    web:
+      path: /sonarr
+      base_env: SONARR__SERVER__URLBASE
+      homepage: { group: Library, description: Series, widget: sonarr }
 
   bazarr:
     image: lscr.io/linuxserver/bazarr
@@ -77,6 +102,9 @@ stack_default_services:
     media: true
     ports:
       - "6767:6767"
+    web:
+      path: /bazarr      # base path is set in Bazarr's config by the configure role
+      homepage: { group: Library, description: Subtitles, widget: bazarr }
 
   seerr:
     image: ghcr.io/seerr-team/seerr
@@ -89,19 +117,38 @@ stack_default_services:
     extra:
       user: "{{ puid }}:{{ pgid }}"
       init: true
+    web:
+      subdomain: requests   # Seerr has no base-path support, so no folder
+      homepage: { group: Watch, description: Request movies & series, widget: jellyseerr }
 
-  # Not requested, but you have /mnt/disk/music - flip to true if you want it.
-  lidarr:
-    enabled: false
-    image: lscr.io/linuxserver/lidarr
-    linuxserver: true
-    media: true
+  traefik:
+    image: traefik
+    tag: v3
+    config_path: /etc/traefik
     ports:
-      - "8686:8686"
+      - "80:80"
+      - "443:443"
+    environment: "{{ proxy_acme_env }}"
+    templates:
+      - { src: traefik/traefik.yml.j2, dest: traefik.yml }
+      - { src: traefik/dynamic.yml.j2, dest: dynamic.yml }
+
+  homepage:
+    image: ghcr.io/gethomepage/homepage
+    config_path: /app/config
     environment:
-      LIDARR__AUTH__APIKEY: "{{ api_keys.lidarr }}"
-      LIDARR__AUTH__METHOD: "{{ arr_auth_method }}"
-      LIDARR__AUTH__REQUIRED: DisabledForLocalAddresses
+      PUID: "{{ puid }}"
+      PGID: "{{ pgid }}"
+      HOMEPAGE_ALLOWED_HOSTS: "{{ proxy_domain }}"
+    web:
+      path: /
+      port: 3000
+    templates:
+      - { src: homepage/settings.yaml.j2, dest: settings.yaml }
+      - { src: homepage/services.yaml.j2, dest: services.yaml }
+      - { src: homepage/widgets.yaml.j2, dest: widgets.yaml }
+      - { src: homepage/bookmarks.yaml.j2, dest: bookmarks.yaml }
+
 
 # Add brand-new services here (same schema as above).
 stack_extra_services: {}
@@ -115,7 +162,7 @@ stack_extra_services: {}
 stack_service_overrides: {}
 #  radarr:
 #    tag: "5.14.0"
-#  lidarr:
-#    enabled: true
+#  bazarr:
+#    enabled: false
 
 stack_services: "{{ stack_default_services | combine(stack_extra_services, stack_service_overrides, recursive=True) }}"
