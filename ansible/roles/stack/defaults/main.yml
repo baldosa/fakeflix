@@ -1,0 +1,7 @@
+# missing = only pull images that aren't present (normal deploy)
+# always  = check registries for newer images (update.yml sets this)
+stack_pull: missing
+
+# Limit pull/recreate to these services: a list or a comma-separated string
+# (e.g. -e stack_only=radarr,sonarr). Empty = all.
+stack_only: []

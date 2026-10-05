@@ -1,0 +1,22 @@
+# Full provisioning: base system, Docker, and the service stack.
+# Safe to re-run at any time (idempotent).
+- name: Bootstrap python
+  hosts: fakeflix
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Ensure python3 is present
+      ansible.builtin.raw: test -e /usr/bin/python3 || (apt-get update && apt-get install -y python3)
+      register: bootstrap
+      changed_when: "'Setting up' in bootstrap.stdout"
+
+- name: Deploy fakeflix
+  hosts: fakeflix
+  become: true
+  roles:
+    - role: common
+      tags: [common]
+    - role: docker
+      tags: [docker]
+    - role: stack
+      tags: [stack]

@@ -1,0 +1,29 @@
+{#- Builds the whole compose document as a dict, then dumps it as YAML. -#}
+{%- set services = {} -%}
+{%- for item in stack_enabled_services | sort(attribute='key') -%}
+{%-   set name = item.key -%}
+{%-   set svc = item.value -%}
+{%-   set env = {} -%}
+{%-   if svc.linuxserver | default(false) -%}{%- set _ = env.update(linuxserver_env) -%}{%- endif -%}
+{%-   set _ = env.update(svc.environment | default({})) -%}
+{%-   set volumes = [] -%}
+{%-   if svc.appdata | default(true) -%}
+{%-     set _ = volumes.append(appdata_dir ~ '/' ~ name ~ ':' ~ svc.config_path | default('/config')) -%}
+{%-   endif -%}
+{%-   if svc.media | default(false) -%}
+{%-     set _ = volumes.append(media_root ~ ':' ~ media_container_path) -%}
+{%-   endif -%}
+{%-   set _ = volumes.extend(svc.volumes | default([])) -%}
+{%-   set definition = {
+        'image': svc.image ~ ':' ~ svc.tag | default('latest'),
+        'container_name': name,
+        'restart': 'unless-stopped',
+      } -%}
+{%-   if env -%}{%- set _ = definition.update({'environment': env}) -%}{%- endif -%}
+{%-   if volumes -%}{%- set _ = definition.update({'volumes': volumes}) -%}{%- endif -%}
+{%-   if svc.ports | default([]) -%}{%- set _ = definition.update({'ports': svc.ports}) -%}{%- endif -%}
+{%-   set _ = services.update({name: definition | combine(svc.extra | default({}), recursive=True)}) -%}
+{%- endfor -%}
+# {{ ansible_managed }}
+# Generated from group_vars/all/services.yml - do not edit on the host.
+{{ {'name': stack_name, 'services': services} | to_nice_yaml(indent=2, sort_keys=False, width=1000) }}

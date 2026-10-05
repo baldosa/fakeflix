@@ -1,0 +1,12 @@
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/terraform.tfvars
+terraform/crash.log
+
+# Ansible
+ansible/inventory/hosts.yml
+ansible/collections/
+ansible/host_vars/*.secret.yml
+*.retry

@@ -1,0 +1,36 @@
+- name: Install base packages
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - tzdata
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
+
+- name: Check that the media disk is there
+  ansible.builtin.stat:
+    path: "{{ media_root }}"
+  register: common_media_root_stat
+
+- name: Fail if the media disk is missing
+  ansible.builtin.assert:
+    that: common_media_root_stat.stat.exists and common_media_root_stat.stat.isdir
+    fail_msg: >-
+      {{ media_root }} does not exist on {{ inventory_hostname }}.
+      Mount the disk (or fix the LXC bind mount) before running this playbook.
+    quiet: true
+
+- name: Create media directories
+  ansible.builtin.file:
+    path: "{{ media_root }}/{{ item }}"
+    state: directory
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: "0775"
+  loop: "{{ media_dirs.values() | list }}"

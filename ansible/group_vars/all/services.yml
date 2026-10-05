@@ -1,0 +1,105 @@
+# ---------------------------------------------------------------------------
+# Service catalog. Every entry becomes a service in the generated compose file.
+#
+# Keys per service:
+#   enabled      bool, default true
+#   image        image name without tag
+#   tag          image tag, default "latest"
+#   linuxserver  bool, inject PUID/PGID/TZ/UMASK (linuxserver.io images)
+#   appdata      bool, default true: create {{ appdata_dir }}/<name> and mount it at `config_path`
+#   config_path  container path for the appdata dir, default /config
+#   media        bool, mount media_root at {{ media_container_path }}
+#   ports        list of "host:container[/proto]"
+#   environment  dict of extra env vars
+#   volumes      list of extra volumes
+#   extra        dict merged verbatim into the compose service (depends_on, devices, user, ...)
+#
+# Don't edit this file to customise: use the two dicts below (or host_vars).
+# ---------------------------------------------------------------------------
+
+stack_default_services:
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent
+    linuxserver: true
+    media: true
+    ports:
+      - "8080:8080"
+      - "6881:6881"
+      - "6881:6881/udp"
+    environment:
+      WEBUI_PORT: "8080"
+      TORRENTING_PORT: "6881"
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr
+    linuxserver: true
+    ports:
+      - "9696:9696"
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr
+    appdata: false
+    ports:
+      - "8191:8191"
+    environment:
+      LOG_LEVEL: info
+      TZ: "{{ timezone }}"
+
+  radarr:
+    image: lscr.io/linuxserver/radarr
+    linuxserver: true
+    media: true
+    ports:
+      - "7878:7878"
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr
+    linuxserver: true
+    media: true
+    ports:
+      - "8989:8989"
+
+  bazarr:
+    image: lscr.io/linuxserver/bazarr
+    linuxserver: true
+    media: true
+    ports:
+      - "6767:6767"
+
+  seerr:
+    image: ghcr.io/seerr-team/seerr
+    config_path: /app/config
+    ports:
+      - "5055:5055"
+    environment:
+      TZ: "{{ timezone }}"
+      LOG_LEVEL: info
+    extra:
+      user: "{{ puid }}:{{ pgid }}"
+      init: true
+
+  # Not requested, but you have /mnt/disk/music - flip to true if you want it.
+  lidarr:
+    enabled: false
+    image: lscr.io/linuxserver/lidarr
+    linuxserver: true
+    media: true
+    ports:
+      - "8686:8686"
+
+# Add brand-new services here (same schema as above).
+stack_extra_services: {}
+#  jellyfin:
+#    image: lscr.io/linuxserver/jellyfin
+#    linuxserver: true
+#    media: true
+#    ports: ["8096:8096"]
+
+# Tweak existing services without copying them (deep-merged).
+stack_service_overrides: {}
+#  radarr:
+#    tag: "5.14.0"
+#  lidarr:
+#    enabled: true
+
+stack_services: "{{ stack_default_services | combine(stack_extra_services, stack_service_overrides, recursive=True) }}"

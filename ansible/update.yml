@@ -1,0 +1,29 @@
+# Update the stack: pull newer images and recreate only the containers whose image changed.
+#
+#   ansible-playbook update.yml                                  # all services
+#   ansible-playbook update.yml -e stack_only=radarr,sonarr       # some services
+#   ansible-playbook update.yml -e update_os=true                # also apt dist-upgrade the host
+- name: Update fakeflix
+  hosts: fakeflix
+  become: true
+  vars:
+    stack_pull: always
+    update_os: false
+  pre_tasks:
+    - name: Upgrade OS packages (incl. Docker)
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+        autoremove: true
+      when: update_os | bool
+      tags: [os]
+  roles:
+    - role: stack
+      tags: [stack]
+  post_tasks:
+    - name: Remove dangling images left behind by the update
+      community.docker.docker_prune:
+        images: true
+        images_filters:
+          dangling: true
+      tags: [stack]

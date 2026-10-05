@@ -1,0 +1,39 @@
+# ---------------------------------------------------------------------------
+# Global settings. Override per host in host_vars/<host>.yml if needed.
+# ---------------------------------------------------------------------------
+
+timezone: Etc/UTC
+
+# User/group the containers run as and that owns config + media files.
+puid: 1000
+pgid: 1000
+umask: "002"
+
+# Where the media disk is mounted on the Docker host.
+media_root: /mnt/disk
+
+# Sub-directories of media_root. Created if missing.
+media_dirs:
+  downloads: Downloads
+  movies: movies
+  series: series
+  music: music
+
+# media_root is mounted into the containers as /data, so inside every app the
+# paths are /data/Downloads, /data/movies, /data/series, /data/music.
+# A single mount (instead of one per folder) keeps hardlinks/atomic moves working.
+media_container_path: /data
+
+# Service configuration/databases live here (one sub-directory per service).
+appdata_dir: /opt/fakeflix/appdata
+
+# Compose project location and name.
+stack_dir: /opt/fakeflix
+stack_name: fakeflix
+
+# Env injected into every service flagged `linuxserver: true`.
+linuxserver_env:
+  PUID: "{{ puid }}"
+  PGID: "{{ pgid }}"
+  TZ: "{{ timezone }}"
+  UMASK: "{{ umask }}"

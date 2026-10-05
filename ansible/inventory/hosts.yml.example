@@ -1,0 +1,9 @@
+# Use this if you are NOT using Terraform (existing VM/LXC/bare metal running Debian or Ubuntu).
+# Copy to hosts.yml and adjust. Terraform generates hosts.yml for you otherwise.
+all:
+  children:
+    fakeflix:
+      hosts:
+        fakeflix:
+          ansible_host: 192.168.1.50
+          ansible_user: root

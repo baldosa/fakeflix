@@ -1,0 +1,48 @@
+- name: Select enabled services
+  ansible.builtin.set_fact:
+    stack_enabled_services: >-
+      {{ (stack_services | dict2items | rejectattr('value.enabled', 'defined') | list)
+         + (stack_services | dict2items | selectattr('value.enabled', 'defined') | selectattr('value.enabled') | list) }}
+
+- name: Create stack directory
+  ansible.builtin.file:
+    path: "{{ stack_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Create appdata directories
+  ansible.builtin.file:
+    path: "{{ appdata_dir }}/{{ item.key }}"
+    state: directory
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: "0775"
+  loop: "{{ stack_enabled_services }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: item.value.appdata | default(true)
+
+- name: Render compose file
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ stack_dir }}/compose.yml"
+    mode: "0644"
+    validate: docker compose -f %s config --quiet
+
+- name: Start / update services
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_dir }}"
+    project_name: "{{ stack_name }}"
+    state: present
+    pull: "{{ stack_pull }}"
+    remove_orphans: true
+    services: "{{ _only if _only | length > 0 else omit }}"
+  vars:
+    _only: "{{ stack_only.split(',') if stack_only is string else stack_only }}"
+
+- name: Service URLs
+  ansible.builtin.debug:
+    msg: "{{ item.key }}: http://{{ ansible_host | default(inventory_hostname) }}:{{ item.value.ports[0].split(':')[0] }}"
+  loop: "{{ stack_enabled_services | selectattr('value.ports', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.key }}"

@@ -1,0 +1,18 @@
+proxmox_endpoint = "https://192.168.1.10:8006/"
+proxmox_username = "root@pam"
+proxmox_password = "change-me"
+node_name        = "pve"
+
+hostname     = "fakeflix"
+ipv4_address = "192.168.1.50/24"
+ipv4_gateway = "192.168.1.1"
+
+rootfs_datastore = "local-lvm"
+rootfs_size_gb   = 32
+cores            = 4
+memory_mb        = 4096
+
+# Directory on the Proxmox host with Downloads/, movies/, series/, music/
+media_host_path = "/mnt/disk"
+
+ssh_public_key_file = "~/.ssh/id_ed25519.pub"
