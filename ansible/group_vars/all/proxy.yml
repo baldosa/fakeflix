@@ -30,15 +30,34 @@ proxy_scheme: "{{ 'https' if proxy_https | bool else 'http' }}"
 
 # --- Homepage -----------------------------------------------------------------
 homepage_title: Fakeflix
-# Extra tiles for things that don't run in this stack.
-homepage_links: []
-#  - name: Jellyfin
-#    group: Watch
-#    href: http://192.168.1.20:8096
-#    icon: jellyfin.png
-#    description: Movies & shows
-#    widget:                     # optional, live stats
-#      type: jellyfin
-#      url: http://192.168.1.20:8096
-#      key: <jellyfin API key>   # Dashboard -> API Keys
-#      enableBlocks: true
+
+# --- Services running elsewhere (other VMs/LXCs/boxes) ------------------------
+# Each entry gets a homepage tile. Give it a `path` or `subdomain` and Traefik
+# also serves it under proxy_domain; without one it's just a link.
+#
+#   url           where it really runs (http or https)
+#   path          folder on proxy_domain, e.g. /jellyfin
+#   subdomain     or <subdomain>.<proxy_domain> instead (safest for apps
+#                 that don't support a base URL)
+#   strip_prefix  true if the app can't be told its base path (see README)
+#   insecure      true for self-signed HTTPS backends (e.g. Proxmox)
+#   homepage      {name, group, description, icon, widget: {type, key, ...}}
+#                 (widget url defaults to `url`; widget types/fields:
+#                  https://gethomepage.dev/widgets/)
+external_services: {}
+#  jellyfin:
+#    url: http://192.168.1.20:8096
+#    subdomain: jellyfin                 # -> http://jellyfin.fakeflix.meme.ar
+#    homepage:
+#      name: Jellyfin
+#      group: Watch
+#      description: Movies & shows
+#      widget: { type: jellyfin, key: "<Dashboard -> API Keys>", enableBlocks: true }
+#  proxmox:
+#    url: https://192.168.1.10:8006
+#    subdomain: proxmox
+#    insecure: true
+#    homepage: { name: Proxmox, group: Infra }
+#  router:
+#    url: http://192.168.1.1              # no path/subdomain = link only
+#    homepage: { name: Router, group: Infra, icon: router.png }

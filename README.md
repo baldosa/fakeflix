@@ -16,7 +16,7 @@ Everything is served under one domain (`proxy_domain`, default `fakeflix.meme.ar
 | (internal) | FlareSolverr | Cloudflare bypass for Prowlarr |
 | (internal) | Configarr | Syncs TRaSH-guide quality profiles into Radarr and Sonarr |
 
-Traefik is the reverse proxy in front of all of it. Each app's own port (`:7878`, `:8989`, …) also still works directly.
+Traefik is the reverse proxy in front of all of it. It runs as one more container in the same LXC, and it can also front services on your other VMs and LXCs (see [Services on other machines](#services-on-other-machines)). Each app's own port (`:7878`, `:8989`, …) also still works directly.
 
 ## Design
 
@@ -68,7 +68,7 @@ proxy_domain: fakeflix.meme.ar
 proxy_https: false
 ```
 
-1. **DNS:** point `fakeflix.meme.ar` and `requests.fakeflix.meme.ar` at the container's IP. A wildcard `*.fakeflix.meme.ar` also works. LAN-only? Use a local DNS entry (router, Pi-hole, AdGuard) or `/etc/hosts`.
+1. **DNS:** point `fakeflix.meme.ar` and a wildcard `*.fakeflix.meme.ar` at the container's IP. The wildcard covers `requests.` (Seerr) and any subdomain you add later. Without a wildcard, add each subdomain yourself. LAN-only? Use a local DNS entry (router, Pi-hole, AdGuard) or `/etc/hosts`.
 2. **HTTPS (optional):** set `proxy_https: true` and `proxy_acme_email`, then pick how Let's Encrypt verifies the domain:
    - `proxy_acme_challenge: http`: port 80 of the domain must be reachable from the internet.
    - `proxy_acme_challenge: dns`: works for a LAN-only box. Set `proxy_acme_dns_provider` (e.g. `cloudflare`) and its API token in `proxy_acme_env` (e.g. `CF_DNS_API_TOKEN`). The variable names for each provider are listed [here](https://doc.traefik.io/traefik/https/acme/#providers).
@@ -77,7 +77,7 @@ proxy_https: false
 
 > ⚠️ **Don't expose this to the internet as-is.** Radarr, Sonarr, Prowlarr and Bazarr have no login, so anyone who can reach the domain can control them. Keep it on your LAN or VPN. If you do open it up, set `proxy_basic_auth_users` in `proxy.yml`, which puts one password in front of everything.
 
-**Homepage** shows one tile per service, with live numbers (queue, wanted, download speed…) pulled using the API keys Ansible manages. Add your Jellyfin with `homepage_links` in `proxy.yml`; there's a commented example. The Seerr tile shows an error until you've done its first-time setup.
+**Homepage** shows one tile per service, with live numbers (queue, wanted, download speed…) pulled using the API keys Ansible manages. Services on other machines get tiles too, see below. The Seerr tile shows an error until you've done its first-time setup.
 
 ## Storage layout
 
@@ -190,6 +190,38 @@ prowlarr_indexers:
 If an indexer can't be reached, the deploy prints a warning and carries on.
 
 **API keys** are generated on the first run and stored in `ansible/secrets/<host>/`. That folder is git-ignored, so back it up. If you lose it, the next deploy creates new keys and re-wires everything; add `-e configure_force=true` to push them to every app.
+
+## Services on other machines
+
+Anything else you run (Jellyfin on another LXC, the Proxmox UI, your router…) can be added in `ansible/group_vars/all/proxy.yml`. Each entry gets a homepage tile; give it a `path` or `subdomain` and Traefik serves it on your domain too:
+
+```yaml
+external_services:
+  jellyfin:
+    url: http://192.168.1.20:8096        # where it really runs
+    subdomain: jellyfin                  # -> http://jellyfin.fakeflix.meme.ar
+    homepage:
+      name: Jellyfin
+      group: Watch
+      description: Movies & shows
+      widget: { type: jellyfin, key: "<Jellyfin: Dashboard -> API Keys>", enableBlocks: true }
+  proxmox:
+    url: https://192.168.1.10:8006
+    subdomain: proxmox
+    insecure: true                       # self-signed certificate
+    homepage: { name: Proxmox, group: Infra }
+  router:
+    url: http://192.168.1.1              # no path/subdomain = homepage link only
+    homepage: { name: Router, group: Infra }
+```
+
+Then run `make deploy`. Only the config is touched; nothing is restarted except Traefik and Homepage.
+
+**Folder or subdomain?** A subdomain always works. A folder (`path: /jellyfin`) only works if the app knows it lives there:
+- If the app has a "base URL" setting (Jellyfin: Dashboard → Networking → Base URL), set it to the same path.
+- If it has none, try `strip_prefix: true`. That works for simple apps but breaks apps that use absolute links; use a subdomain for those.
+
+Widget types and their fields (API keys etc.) are listed at [gethomepage.dev/widgets](https://gethomepage.dev/widgets/). The widget's `url` defaults to the service's `url`.
 
 ## Logins
 

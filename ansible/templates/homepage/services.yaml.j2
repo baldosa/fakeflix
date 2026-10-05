@@ -1,23 +1,33 @@
-{#- One tile per proxied service with a `web.homepage` entry, plus homepage_links. -#}
+{#- One tile per catalog service with web.homepage, plus every external_service. -#}
 {%- set internal = stack_enabled_services | service_urls -%}
-{%- set groups = {} -%}
+{%- set tiles = [] -%}
 {%- for item in stack_enabled_services if item.value.web.homepage is defined -%}
 {%-   set hp = item.value.web.homepage -%}
-{%-   set tile = {'href': item.value | public_url(proxy_domain, proxy_scheme),
-                  'icon': hp.icon | default(item.key ~ '.png'),
-                  'description': hp.description | default('')} -%}
+{%-   set widget = {} -%}
 {%-   if hp.widget is defined -%}
 {%-     set widget = {'type': hp.widget, 'url': internal[item.key] | default('http://' ~ item.key)} -%}
 {%-     if item.key in api_keys -%}{%- set _ = widget.update({'key': api_keys[item.key]}) -%}{%- endif -%}
 {%-     if hp.widget == 'qbittorrent' -%}{%- set _ = widget.update({'username': '', 'password': ''}) -%}{%- endif -%}
-{%-     set _ = tile.update({'widget': widget}) -%}
 {%-   endif -%}
-{%-   set group = hp.group | default('Services') -%}
-{%-   set _ = groups.update({group: groups.get(group, []) + [{hp.name | default(item.key | capitalize): tile}]}) -%}
+{%-   set _ = tiles.append({'key': item.key, 'hp': hp, 'widget': widget,
+                            'href': item.value | public_url(proxy_domain, proxy_scheme)}) -%}
 {%- endfor -%}
-{%- for link in homepage_links -%}
-{%-   set group = link.group | default('Links') -%}
-{%-   set _ = groups.update({group: groups.get(group, []) + [{link.name: link | dict2items | rejectattr('key', 'in', ['name', 'group']) | items2dict}]}) -%}
+{%- for item in external_services | dict2items -%}
+{%-   set hp = item.value.homepage | default({}) -%}
+{%-   set proxied = item.value.path is defined or item.value.subdomain is defined -%}
+{%-   set widget = {} -%}
+{%-   if hp.widget is defined -%}
+{%-     set widget = {'url': item.value.url} | combine(hp.widget) -%}
+{%-   endif -%}
+{%-   set _ = tiles.append({'key': item.key, 'hp': hp, 'widget': widget,
+                            'href': ({'web': item.value} | public_url(proxy_domain, proxy_scheme)) if proxied else item.value.url}) -%}
+{%- endfor -%}
+{%- set groups = {} -%}
+{%- for t in tiles -%}
+{%-   set tile = {'href': t.href, 'icon': t.hp.icon | default(t.key ~ '.png'), 'description': t.hp.description | default('')} -%}
+{%-   if t.widget -%}{%- set _ = tile.update({'widget': t.widget}) -%}{%- endif -%}
+{%-   set group = t.hp.group | default('Services') -%}
+{%-   set _ = groups.update({group: groups.get(group, []) + [{t.hp.name | default(t.key | capitalize): tile}]}) -%}
 {%- endfor -%}
 {%- set order = ['Watch', 'Library', 'Downloads'] -%}
 {%- set out = [] -%}

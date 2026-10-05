@@ -1,13 +1,24 @@
-{#- One router per catalog service with a `web` block. -#}
+{#- One router per proxied thing: catalog services with a `web` block, plus
+    external_services that have a path or subdomain. -#}
+{%- set targets = [] -%}
+{%- for item in stack_enabled_services if item.value.web is defined and item.key != 'traefik' -%}
+{%-   set port = (item.value | container_port) if item.value.ports is defined else (item.value.web.port | default(80)) -%}
+{%-   set _ = targets.append({'name': item.key, 'web': item.value.web, 'url': 'http://' ~ item.key ~ ':' ~ port}) -%}
+{%- endfor -%}
+{%- for item in external_services | dict2items if item.value.path is defined or item.value.subdomain is defined -%}
+{%-   set _ = targets.append({'name': item.key, 'web': item.value, 'url': item.value.url,
+                              'insecure': item.value.insecure | default(false)}) -%}
+{%- endfor -%}
 {%- set routers = {} -%}
 {%- set services = {} -%}
 {%- set middlewares = {} -%}
+{%- set transports = {} -%}
 {%- if proxy_basic_auth_users -%}
 {%-   set _ = middlewares.update({'auth': {'basicAuth': {'users': proxy_basic_auth_users}}}) -%}
 {%- endif -%}
-{%- for item in stack_enabled_services if item.value.web is defined and item.key != 'traefik' -%}
-{%-   set name = item.key -%}
-{%-   set web = item.value.web -%}
+{%- for t in targets -%}
+{%-   set name = t.name -%}
+{%-   set web = t.web -%}
 {%-   set path = (web.path | default('/')).rstrip('/') -%}
 {%-   if web.subdomain is defined -%}
 {%-     set rule = 'Host(`' ~ web.subdomain ~ '.' ~ proxy_domain ~ '`)' -%}
@@ -28,11 +39,16 @@
                     'entryPoints': ['websecure' if proxy_https | bool else 'web']} -%}
 {%-   if mws -%}{%- set _ = router.update({'middlewares': mws}) -%}{%- endif -%}
 {%-   if proxy_https | bool -%}{%- set _ = router.update({'tls': {'certResolver': 'letsencrypt'}}) -%}{%- endif -%}
-{%-   set port = (item.value | container_port) if item.value.ports is defined else (web.port | default(3000)) -%}
+{%-   set lb = {'servers': [{'url': t.url}], 'passHostHeader': true} -%}
+{%-   if t.insecure | default(false) -%}
+{%-     set _ = transports.update({'insecure': {'insecureSkipVerify': true}}) -%}
+{%-     set _ = lb.update({'serversTransport': 'insecure'}) -%}
+{%-   endif -%}
 {%-   set _ = routers.update({name: router}) -%}
-{%-   set _ = services.update({name: {'loadBalancer': {'servers': [{'url': 'http://' ~ name ~ ':' ~ port}]}}}) -%}
+{%-   set _ = services.update({name: {'loadBalancer': lb}}) -%}
 {%- endfor -%}
 {%- set http = {'routers': routers, 'services': services} -%}
 {%- if middlewares -%}{%- set _ = http.update({'middlewares': middlewares}) -%}{%- endif -%}
+{%- if transports -%}{%- set _ = http.update({'serversTransports': transports}) -%}{%- endif -%}
 # {{ ansible_managed }}
 {{ {'http': http} | to_nice_yaml(indent=2, sort_keys=False) }}
