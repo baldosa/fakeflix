@@ -11,3 +11,6 @@ ansible/collections/
 ansible/host_vars/*.secret.yml
 ansible/secrets/
 *.retry
+
+# Python
+__pycache__/
