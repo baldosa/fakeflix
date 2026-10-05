@@ -1,0 +1,11 @@
+# Wait until an HTTP API answers 200.
+#   wait_url, wait_headers (optional), wait_label
+- name: "{{ wait_label }} | wait for API"
+  ansible.builtin.uri:
+    url: "{{ wait_url }}"
+    headers: "{{ wait_headers | default({}) }}"
+    status_code: 200
+  register: configure_wait
+  until: configure_wait.status == 200
+  retries: "{{ configure_wait_retries }}"
+  delay: 5

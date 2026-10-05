@@ -1,0 +1,81 @@
+# ---------------------------------------------------------------------------
+# How the services are wired together. The `configure` role applies all of
+# this on every deploy/update, so you never have to click through the UIs.
+# ---------------------------------------------------------------------------
+
+# --- API keys ---------------------------------------------------------------
+# Generated once and stored on the machine running Ansible under
+# ansible/secrets/<host>/ (git-ignored). Set a value here to use your own.
+fakeflix_secrets_dir: "{{ playbook_dir }}/secrets/{{ inventory_hostname }}"
+api_keys:
+  radarr: "{{ lookup('ansible.builtin.password', fakeflix_secrets_dir ~ '/radarr_api_key chars=hexdigits length=32') | lower }}"
+  sonarr: "{{ lookup('ansible.builtin.password', fakeflix_secrets_dir ~ '/sonarr_api_key chars=hexdigits length=32') | lower }}"
+  lidarr: "{{ lookup('ansible.builtin.password', fakeflix_secrets_dir ~ '/lidarr_api_key chars=hexdigits length=32') | lower }}"
+  prowlarr: "{{ lookup('ansible.builtin.password', fakeflix_secrets_dir ~ '/prowlarr_api_key chars=hexdigits length=32') | lower }}"
+  seerr: "{{ lookup('ansible.builtin.password', fakeflix_secrets_dir ~ '/seerr_api_key chars=ascii_letters,digits length=40') }}"
+
+# --- Logins -----------------------------------------------------------------
+# Radarr/Sonarr/Lidarr/Prowlarr: "External" = no login page at all.
+# Use "Forms" to get a login page back (you'll be asked to create a user).
+arr_auth_method: External
+
+# qBittorrent skips the login for clients in these networks.
+qbittorrent_auth_bypass_subnets:
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+
+# --- Download client ----------------------------------------------------------
+# Categories qBittorrent files downloads under (sub-folders of Downloads).
+download_categories:
+  radarr: movies
+  sonarr: series
+  lidarr: music
+
+# --- Prowlarr -----------------------------------------------------------------
+# Indexers to add. `name` is the indexer's definition name in Prowlarr
+# (Indexers -> Add, hover the name, or look at https://github.com/Prowlarr/Indexers).
+# Private trackers need credentials in `fields`. flaresolverr: true routes the
+# indexer through FlareSolverr (for Cloudflare-protected sites).
+prowlarr_indexers: []
+#  - name: 1337x
+#    flaresolverr: true
+#  - name: thepiratebay
+#  - name: yts
+#  - name: someprivatetracker
+#    fields:
+#      username: me
+#      password: secret
+
+# --- Configarr (TRaSH guide quality profiles + custom formats) -----------------
+configarr_enabled: true
+configarr_image: ghcr.io/raydak-labs/configarr:latest
+# Templates from https://github.com/recyclarr/config-templates
+# (the "include" names). The first profile listed is used as Seerr's default.
+configarr_radarr_templates:
+  - radarr-quality-definition-movie
+  - radarr-quality-profile-hd-bluray-web
+  - radarr-custom-formats-hd-bluray-web
+configarr_sonarr_templates:
+  - sonarr-quality-definition-series
+  - sonarr-v4-quality-profile-web-1080p
+  - sonarr-v4-custom-formats-web-1080p
+# Quality profile names those templates create (used for Seerr's defaults).
+radarr_default_profile: HD Bluray + WEB
+sonarr_default_profile: WEB-1080p
+# Full Configarr config, if you want to go beyond templates. Merged on top.
+configarr_extra_config: {}
+# Extra env/volumes for the Configarr container (e.g. a proxy or custom CA).
+configarr_env: {}
+configarr_volumes: []
+
+# --- Bazarr -------------------------------------------------------------------
+# Subtitle languages (ISO 639-1) and providers that need no account.
+bazarr_languages: [en]
+bazarr_providers:
+  - podnapisi
+  - yifysubtitles
+  - embeddedsubtitles
+
+# --- Seerr --------------------------------------------------------------------
+seerr_minimum_availability: released

@@ -30,25 +30,9 @@
   loop_control:
     label: "{{ item.item }}"
 
-- name: Map media folders to their path inside the apps
-  ansible.builtin.set_fact:
-    common_media_app_paths: >-
-      {{ common_media_app_paths | default({})
-         | combine({item.key: (_mount.value ~ item.value[_mount.key | length:]) if _mount else none}) }}
-  vars:
-    _parts: "{{ item.value.strip('/').split('/') }}"
-    _ancestors: >-
-      {% for i in range(_parts | length, 0, -1) %}/{{ _parts[:i] | join('/') }}{{ '' if loop.last else ',' }}{% endfor %}
-    _mount: >-
-      {{ media_mounts | dict2items | selectattr('key', 'in', _ancestors.split(','))
-         | sort(attribute='key', reverse=True) | first | default(none) }}
-  loop: "{{ media_dirs | dict2items }}"
-  loop_control:
-    label: "{{ item.key }}"
-
 - name: Fail if a media folder is outside every media mount
   ansible.builtin.assert:
-    that: common_media_app_paths[item.key] is not none
+    that: item.value | media_app_path(media_mounts) is not none
     fail_msg: >-
       media_dirs.{{ item.key }} ({{ item.value }}) is not under any of
       media_mounts {{ media_mounts.keys() | list }}, so the apps could not see it.
@@ -68,9 +52,9 @@
   loop_control:
     label: "{{ item.key }}: {{ item.value }}"
 
-- name: Media paths to use inside the apps
+- name: Media paths inside the apps
   ansible.builtin.debug:
-    msg: "{{ item.key }}: {{ media_dirs[item.key] }} -> {{ item.value }}"
-  loop: "{{ common_media_app_paths | dict2items }}"
+    msg: "{{ item.key }}: {{ item.value }} -> {{ item.value | media_app_path(media_mounts) }}"
+  loop: "{{ media_dirs | dict2items }}"
   loop_control:
     label: "{{ item.key }}"

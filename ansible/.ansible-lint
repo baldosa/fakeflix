@@ -1,0 +1,8 @@
+# Task names like "qBittorrent | wait" and "{{ arr_name }} | create" read
+# better in the output than the strict naming rules allow.
+skip_list:
+  - name[casing]
+  - name[template]
+exclude_paths:
+  - collections/
+  - secrets/

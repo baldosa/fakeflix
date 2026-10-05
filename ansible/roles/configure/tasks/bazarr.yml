@@ -1,0 +1,67 @@
+- name: Bazarr | wait for config file
+  ansible.builtin.stat:
+    path: "{{ appdata_dir }}/bazarr/config/config.yaml"
+  register: configure_bazarr_conf
+  until: configure_bazarr_conf.stat.exists
+  retries: "{{ configure_wait_retries }}"
+  delay: 5
+
+- name: Bazarr | read API key
+  ansible.builtin.slurp:
+    src: "{{ configure_bazarr_conf.stat.path }}"
+  register: configure_bazarr_raw
+
+- name: Bazarr | settings
+  ansible.builtin.set_fact:
+    configure_bazarr:
+      url: "{{ configure_local.bazarr }}"
+      headers:
+        X-API-KEY: "{{ (configure_bazarr_raw.content | b64decode | from_yaml).auth.apikey }}"
+    configure_bazarr_desired: >-
+      {{ {'general': {'enabled_providers': bazarr_providers,
+                      'serie_default_enabled': true, 'serie_default_profile': 1,
+                      'movie_default_enabled': true, 'movie_default_profile': 1,
+                      'use_sonarr': 'sonarr' in configure_enabled,
+                      'use_radarr': 'radarr' in configure_enabled}}
+         | combine({'sonarr': {'ip': 'sonarr', 'port': stack_services.sonarr | container_port | int,
+                               'apikey': api_keys.sonarr, 'base_url': ''}}
+                   if 'sonarr' in configure_enabled else {})
+         | combine({'radarr': {'ip': 'radarr', 'port': stack_services.radarr | container_port | int,
+                               'apikey': api_keys.radarr, 'base_url': ''}}
+                   if 'radarr' in configure_enabled else {}) }}
+
+- name: Bazarr | wait for API
+  ansible.builtin.include_tasks: wait_api.yml
+  vars:
+    wait_label: Bazarr
+    wait_url: "{{ configure_bazarr.url }}/api/system/status"
+    wait_headers: "{{ configure_bazarr.headers }}"
+
+- name: Bazarr | read settings
+  ansible.builtin.uri:
+    url: "{{ configure_bazarr.url }}/api/system/settings"
+    headers: "{{ configure_bazarr.headers }}"
+  register: configure_bazarr_current
+
+- name: Bazarr | read language profiles
+  ansible.builtin.uri:
+    url: "{{ configure_bazarr.url }}/api/system/languages/profiles"
+    headers: "{{ configure_bazarr.headers }}"
+  register: configure_bazarr_profiles
+
+- name: Bazarr | apply settings
+  ansible.builtin.uri:
+    url: "{{ configure_bazarr.url }}/api/system/settings"
+    method: POST
+    headers: "{{ configure_bazarr.headers }}"
+    body_format: form-urlencoded
+    # Language profile is only created when none exists, so UI edits survive.
+    body: >-
+      {{ configure_bazarr_desired
+         | bazarr_form(bazarr_languages if configure_bazarr_profiles.json | length == 0 else none) }}
+    status_code: [200, 204]
+  changed_when: true
+  when: >-
+    configure_force | bool
+    or configure_bazarr_profiles.json | length == 0
+    or configure_bazarr_current.json | dict_differs(configure_bazarr_desired)

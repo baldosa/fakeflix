@@ -1,0 +1,55 @@
+# Configarr is a one-shot job: it syncs TRaSH-guide quality profiles and custom
+# formats into Radarr/Sonarr, then exits. Re-run by every deploy/update.
+- name: Configarr | directories
+  ansible.builtin.file:
+    path: "{{ stack_dir }}/configarr/{{ item }}"
+    state: directory
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: "0750"
+  loop: [config, repos]
+
+- name: Configarr | config
+  ansible.builtin.template:
+    src: configarr.yml.j2
+    dest: "{{ stack_dir }}/configarr/config/config.yml"
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: "0600"
+
+- name: Configarr | secrets file (unused, API keys are inline)
+  ansible.builtin.copy:
+    content: "{}\n"
+    dest: "{{ stack_dir }}/configarr/config/secrets.yml"
+    owner: "{{ puid }}"
+    group: "{{ pgid }}"
+    mode: "0600"
+    force: false
+
+- name: Configarr | sync quality profiles and custom formats
+  community.docker.docker_container:
+    name: configarr
+    image: "{{ configarr_image }}"
+    pull: "{{ stack_pull == 'always' }}"
+    detach: false
+    cleanup: true
+    output_logs: true
+    user: "{{ puid }}:{{ pgid }}"
+    networks:
+      - name: "{{ stack_name }}_default"
+    networks_cli_compatible: true
+    volumes: >-
+      {{ [stack_dir ~ '/configarr/config:/app/config', stack_dir ~ '/configarr/repos:/app/repos']
+         + configarr_volumes }}
+    env: "{{ {'TZ': timezone} | combine(configarr_env) }}"
+  register: configure_configarr
+  changed_when: false
+  # A failed sync (e.g. GitHub unreachable) shouldn't take the stack down.
+  failed_when: false
+
+- name: Configarr | result
+  ansible.builtin.debug:
+    msg: >-
+      {{ ([] if configure_configarr.status | default(1) == 0 else
+          ['WARNING: Configarr failed, quality profiles were not synced:'])
+         + (configure_configarr.container.Output | default(configure_configarr.msg | default(''))).splitlines()[-15:] }}

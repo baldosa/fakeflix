@@ -1,0 +1,72 @@
+# Create or update a "provider" resource (download client, application,
+# indexer, indexer proxy, ...) in a Servarr app (Radarr/Sonarr/Lidarr/Prowlarr),
+# matched by name. Starts from the app's own schema, so only the values that
+# matter need to be given.
+#
+#   arr_url        http://127.0.0.1:7878
+#   arr_key        API key
+#   arr_api        v3 | v1
+#   arr_resource   downloadclient | applications | indexer | indexerProxy ...
+#   arr_name       display name (used to find an existing entry)
+#   arr_implementation / arr_match   which schema entry to start from
+#   arr_fields     {fieldName: value}
+#   arr_body       extra top-level keys (enable, tags, priority, ...)
+#   arr_soft_fail  true = warn instead of failing when the app rejects it
+- name: "{{ arr_name }} | read existing {{ arr_resource }}"
+  ansible.builtin.uri:
+    url: "{{ arr_url }}/api/{{ arr_api }}/{{ arr_resource }}"
+    headers: { X-Api-Key: "{{ arr_key }}" }
+  register: configure_arr_list
+
+- name: "{{ arr_name }} | read {{ arr_resource }} schema"
+  ansible.builtin.uri:
+    url: "{{ arr_url }}/api/{{ arr_api }}/{{ arr_resource }}/schema"
+    headers: { X-Api-Key: "{{ arr_key }}" }
+  register: configure_arr_schema
+  when: configure_arr_list.json | selectattr('name', 'equalto', arr_name) | length == 0
+
+- name: "{{ arr_name }} | build desired {{ arr_resource }}"
+  ansible.builtin.set_fact:
+    configure_arr_current: "{{ configure_arr_list.json | selectattr('name', 'equalto', arr_name) | first | default(none) }}"
+    configure_arr_desired: >-
+      {{ (configure_arr_list.json | selectattr('name', 'equalto', arr_name) | first
+          if configure_arr_schema is skipped
+          else configure_arr_schema.json | arr_pick_schema(arr_implementation | default(none), arr_match | default({})))
+         | arr_apply(arr_name, arr_fields | default({}), arr_body | default({})) }}
+
+- name: "{{ arr_name }} | create {{ arr_resource }}"
+  ansible.builtin.uri:
+    url: "{{ arr_url }}/api/{{ arr_api }}/{{ arr_resource }}?forceSave=true"
+    method: POST
+    headers: { X-Api-Key: "{{ arr_key }}" }
+    body_format: json
+    body: "{{ configure_arr_desired }}"
+    status_code: [200, 201]
+  register: configure_arr_create
+  changed_when: configure_arr_create.status in [200, 201]
+  failed_when: configure_arr_create.status not in [200, 201] and not arr_soft_fail | default(false)
+  when: configure_arr_current is none
+
+- name: "{{ arr_name }} | update {{ arr_resource }}"
+  ansible.builtin.uri:
+    url: "{{ arr_url }}/api/{{ arr_api }}/{{ arr_resource }}/{{ configure_arr_current.id }}?forceSave=true"
+    method: PUT
+    headers: { X-Api-Key: "{{ arr_key }}" }
+    body_format: json
+    body: "{{ configure_arr_desired }}"
+    status_code: [200, 202]
+  register: configure_arr_update
+  changed_when: configure_arr_update.status in [200, 202]
+  failed_when: configure_arr_update.status not in [200, 202] and not arr_soft_fail | default(false)
+  when:
+    - configure_arr_current is not none
+    - configure_force | bool or configure_arr_current | arr_differs(configure_arr_desired)
+
+- name: "{{ arr_name }} | rejected"
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: {{ arr_name }} was not saved:
+      {{ (item.json | default([]) | map(attribute='errorMessage') | list) or item.msg }}
+  loop: "{{ [configure_arr_create, configure_arr_update] | selectattr('status', 'defined') | rejectattr('status', 'in', [200, 201, 202]) }}"
+  loop_control:
+    label: "{{ arr_name }}"

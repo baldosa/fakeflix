@@ -1,0 +1,100 @@
+- name: Prowlarr | settings
+  ansible.builtin.set_fact:
+    configure_prowlarr:
+      url: "{{ configure_local.prowlarr }}"
+      key: "{{ api_keys.prowlarr }}"
+    configure_flaresolverr_tag: null
+
+- name: Prowlarr | wait for API
+  ansible.builtin.include_tasks: wait_api.yml
+  vars:
+    wait_label: Prowlarr
+    wait_url: "{{ configure_prowlarr.url }}/api/v1/system/status"
+    wait_headers: { X-Api-Key: "{{ configure_prowlarr.key }}" }
+
+# --- FlareSolverr: used by indexers tagged "flaresolverr" -----------------------
+- name: Prowlarr | FlareSolverr
+  when: "'flaresolverr' in configure_enabled"
+  block:
+    - name: Prowlarr | read tags
+      ansible.builtin.uri:
+        url: "{{ configure_prowlarr.url }}/api/v1/tag"
+        headers: { X-Api-Key: "{{ configure_prowlarr.key }}" }
+      register: configure_prowlarr_tags
+
+    - name: Prowlarr | create flaresolverr tag
+      ansible.builtin.uri:
+        url: "{{ configure_prowlarr.url }}/api/v1/tag"
+        method: POST
+        headers: { X-Api-Key: "{{ configure_prowlarr.key }}" }
+        body_format: json
+        body: { label: flaresolverr }
+        status_code: [200, 201]
+      register: configure_prowlarr_newtag
+      changed_when: true
+      when: "'flaresolverr' not in (configure_prowlarr_tags.json | map(attribute='label') | list)"
+
+    - name: Prowlarr | remember tag id
+      ansible.builtin.set_fact:
+        configure_flaresolverr_tag: >-
+          {{ (configure_prowlarr_tags.json | selectattr('label', 'equalto', 'flaresolverr') | first).id
+             if configure_prowlarr_newtag is skipped else configure_prowlarr_newtag.json.id }}
+
+    - name: Prowlarr | FlareSolverr proxy
+      ansible.builtin.include_tasks: arr_resource.yml
+      vars:
+        arr_url: "{{ configure_prowlarr.url }}"
+        arr_key: "{{ configure_prowlarr.key }}"
+        arr_api: v1
+        arr_resource: indexerProxy
+        arr_name: FlareSolverr
+        arr_implementation: FlareSolverr
+        arr_fields:
+          host: "{{ configure_internal.flaresolverr }}/"
+        arr_body:
+          tags: "{{ [configure_flaresolverr_tag | int] }}"
+
+# --- Push indexers to Radarr/Sonarr/Lidarr -------------------------------------
+- name: Prowlarr | connect apps
+  ansible.builtin.include_tasks: arr_resource.yml
+  loop: "{{ ['radarr', 'sonarr', 'lidarr'] | intersect(configure_enabled) }}"
+  loop_control:
+    loop_var: prowlarr_app
+  vars:
+    arr_url: "{{ configure_prowlarr.url }}"
+    arr_key: "{{ configure_prowlarr.key }}"
+    arr_api: v1
+    arr_resource: applications
+    arr_name: "{{ prowlarr_app | capitalize }}"
+    arr_implementation: "{{ prowlarr_app | capitalize }}"
+    arr_fields:
+      prowlarrUrl: "{{ configure_internal.prowlarr }}"
+      baseUrl: "{{ configure_internal[prowlarr_app] }}"
+      apiKey: "{{ api_keys[prowlarr_app] }}"
+    arr_body:
+      syncLevel: fullSync
+
+# --- Indexers -------------------------------------------------------------------
+- name: Prowlarr | indexers
+  ansible.builtin.include_tasks: arr_resource.yml
+  loop: "{{ prowlarr_indexers }}"
+  loop_control:
+    loop_var: prowlarr_indexer
+    label: "{{ prowlarr_indexer.name }}"
+  vars:
+    arr_url: "{{ configure_prowlarr.url }}"
+    arr_key: "{{ configure_prowlarr.key }}"
+    arr_api: v1
+    arr_resource: indexer
+    arr_soft_fail: true
+    arr_name: "{{ prowlarr_indexer.title | default(prowlarr_indexer.name) }}"
+    arr_match:
+      definitionName: "{{ prowlarr_indexer.name }}"
+    arr_fields: "{{ prowlarr_indexer.fields | default({}) }}"
+    arr_body:
+      enable: true
+      appProfileId: 1
+      priority: "{{ prowlarr_indexer.priority | default(25) }}"
+      tags: >-
+        {{ [configure_flaresolverr_tag | int]
+           if prowlarr_indexer.flaresolverr | default(false) and configure_flaresolverr_tag is not none else [] }}

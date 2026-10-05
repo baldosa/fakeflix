@@ -9,4 +9,5 @@ terraform/crash.log
 ansible/inventory/hosts.yml
 ansible/collections/
 ansible/host_vars/*.secret.yml
+ansible/secrets/
 *.retry

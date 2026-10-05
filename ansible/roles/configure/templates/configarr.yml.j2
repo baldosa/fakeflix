@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+{% set cfg = {} %}
+{% if 'radarr' in configure_enabled %}
+{%   set _ = cfg.update({'radarr': {'radarr': {
+       'base_url': configure_internal.radarr,
+       'api_key': api_keys.radarr,
+       'include': configarr_radarr_templates | map('community.general.dict_kv', 'template') | list}}}) %}
+{% endif %}
+{% if 'sonarr' in configure_enabled %}
+{%   set _ = cfg.update({'sonarr': {'sonarr': {
+       'base_url': configure_internal.sonarr,
+       'api_key': api_keys.sonarr,
+       'include': configarr_sonarr_templates | map('community.general.dict_kv', 'template') | list}}}) %}
+{% endif %}
+{{ cfg | combine(configarr_extra_config, recursive=True) | to_nice_yaml(indent=2, sort_keys=False) }}

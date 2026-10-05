@@ -20,3 +20,5 @@
       tags: [docker]
     - role: stack
       tags: [stack]
+    - role: configure
+      tags: [configure]

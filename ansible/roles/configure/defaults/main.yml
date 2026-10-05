@@ -1,0 +1,6 @@
+# Re-send every integration even if it looks unchanged (e.g. after rotating
+# API keys - the *arr APIs hide stored secrets, so changes can't be detected).
+configure_force: false
+
+# How long to wait for each app's API to come up (retries x 5s).
+configure_wait_retries: 60

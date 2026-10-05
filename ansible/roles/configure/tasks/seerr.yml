@@ -1,0 +1,51 @@
+# Seerr can't be set up through its API before a media server login, so
+# Radarr/Sonarr are written into settings.json (while stopped).
+- name: Seerr | wait for settings.json
+  ansible.builtin.stat:
+    path: "{{ appdata_dir }}/seerr/settings.json"
+  register: configure_seerr_file
+  until: configure_seerr_file.stat.exists
+  retries: "{{ configure_wait_retries }}"
+  delay: 5
+
+- name: Seerr | read settings.json
+  ansible.builtin.slurp:
+    src: "{{ configure_seerr_file.stat.path }}"
+  register: configure_seerr_raw
+
+- name: Seerr | read quality profiles
+  ansible.builtin.uri:
+    url: "{{ configure_local[item] }}/api/v3/qualityprofile"
+    headers: { X-Api-Key: "{{ api_keys[item] }}" }
+  register: configure_seerr_profiles
+  loop: "{{ ['radarr', 'sonarr'] | intersect(configure_enabled) }}"
+
+- name: Seerr | desired settings
+  ansible.builtin.set_fact:
+    configure_seerr_current: "{{ configure_seerr_raw.content | b64decode | from_json }}"
+    configure_seerr_desired: "{{ lookup('ansible.builtin.template', 'seerr.json.j2') | from_json }}"
+
+- name: Seerr | apply settings
+  when: >-
+    configure_force | bool
+    or configure_seerr_current | dict_differs(configure_seerr_desired)
+  block:
+    - name: Seerr | stop
+      community.docker.docker_container:
+        name: seerr
+        state: stopped
+
+    - name: Seerr | write settings.json
+      ansible.builtin.copy:
+        content: "{{ configure_seerr_current | combine(configure_seerr_desired, recursive=True) | to_nice_json(indent=1) }}\n"
+        dest: "{{ configure_seerr_file.stat.path }}"
+        owner: "{{ puid }}"
+        group: "{{ pgid }}"
+        mode: "0644"
+
+    - name: Seerr | start
+      community.docker.docker_compose_v2:
+        project_src: "{{ stack_dir }}"
+        project_name: "{{ stack_name }}"
+        services: [seerr]
+        state: present

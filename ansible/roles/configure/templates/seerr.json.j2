@@ -1,0 +1,36 @@
+{#- Partial Seerr settings.json; merged into the existing file. -#}
+{%- set profiles = {} -%}
+{%- for r in configure_seerr_profiles.results -%}
+{%-   set wanted = radarr_default_profile if r.item == 'radarr' else sonarr_default_profile -%}
+{%-   set p = (r.json | selectattr('name', 'equalto', wanted) | list + r.json) | first -%}
+{%-   set _ = profiles.update({r.item: p}) -%}
+{%- endfor -%}
+{%- set out = {'main': {'apiKey': api_keys.seerr}} -%}
+{%- if 'radarr' in profiles -%}
+{%-   set _ = out.update({'radarr': [{
+        'id': 0, 'name': 'Radarr', 'hostname': 'radarr',
+        'port': stack_services.radarr | container_port | int,
+        'apiKey': api_keys.radarr, 'useSsl': false, 'baseUrl': '',
+        'activeProfileId': profiles.radarr.id, 'activeProfileName': profiles.radarr.name,
+        'activeDirectory': configure_paths.movies,
+        'is4k': false, 'minimumAvailability': seerr_minimum_availability,
+        'tags': [], 'isDefault': true,
+        'externalUrl': 'http://' ~ (ansible_host | default(inventory_hostname)) ~ ':' ~ (stack_services.radarr | host_port),
+        'syncEnabled': true, 'preventSearch': false}]}) -%}
+{%- endif -%}
+{%- if 'sonarr' in profiles -%}
+{%-   set _ = out.update({'sonarr': [{
+        'id': 0, 'name': 'Sonarr', 'hostname': 'sonarr',
+        'port': stack_services.sonarr | container_port | int,
+        'apiKey': api_keys.sonarr, 'useSsl': false, 'baseUrl': '',
+        'activeProfileId': profiles.sonarr.id, 'activeProfileName': profiles.sonarr.name,
+        'activeDirectory': configure_paths.series,
+        'activeAnimeProfileId': profiles.sonarr.id, 'activeAnimeProfileName': profiles.sonarr.name,
+        'activeAnimeDirectory': configure_paths.series,
+        'seriesType': 'standard', 'animeSeriesType': 'anime',
+        'tags': [], 'animeTags': [], 'is4k': false, 'isDefault': true,
+        'enableSeasonFolders': true,
+        'externalUrl': 'http://' ~ (ansible_host | default(inventory_hostname)) ~ ':' ~ (stack_services.sonarr | host_port),
+        'syncEnabled': true, 'preventSearch': false}]}) -%}
+{%- endif -%}
+{{ out | to_json }}

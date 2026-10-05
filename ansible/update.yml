@@ -1,4 +1,5 @@
-# Update the stack: pull newer images and recreate only the containers whose image changed.
+# Update the stack: pull newer images, recreate only the containers whose image
+# changed, re-apply the integrations and re-sync TRaSH profiles (Configarr).
 #
 #   ansible-playbook update.yml                                  # all services
 #   ansible-playbook update.yml -e stack_only=radarr,sonarr       # some services
@@ -20,6 +21,8 @@
   roles:
     - role: stack
       tags: [stack]
+    - role: configure
+      tags: [configure]
   post_tasks:
     - name: Remove dangling images left behind by the update
       community.docker.docker_prune:

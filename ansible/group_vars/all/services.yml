@@ -35,6 +35,10 @@ stack_default_services:
     linuxserver: true
     ports:
       - "9696:9696"
+    environment:
+      PROWLARR__AUTH__APIKEY: "{{ api_keys.prowlarr }}"
+      PROWLARR__AUTH__METHOD: "{{ arr_auth_method }}"
+      PROWLARR__AUTH__REQUIRED: DisabledForLocalAddresses
 
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr
@@ -51,6 +55,10 @@ stack_default_services:
     media: true
     ports:
       - "7878:7878"
+    environment:
+      RADARR__AUTH__APIKEY: "{{ api_keys.radarr }}"
+      RADARR__AUTH__METHOD: "{{ arr_auth_method }}"
+      RADARR__AUTH__REQUIRED: DisabledForLocalAddresses
 
   sonarr:
     image: lscr.io/linuxserver/sonarr
@@ -58,6 +66,10 @@ stack_default_services:
     media: true
     ports:
       - "8989:8989"
+    environment:
+      SONARR__AUTH__APIKEY: "{{ api_keys.sonarr }}"
+      SONARR__AUTH__METHOD: "{{ arr_auth_method }}"
+      SONARR__AUTH__REQUIRED: DisabledForLocalAddresses
 
   bazarr:
     image: lscr.io/linuxserver/bazarr
@@ -86,6 +98,10 @@ stack_default_services:
     media: true
     ports:
       - "8686:8686"
+    environment:
+      LIDARR__AUTH__APIKEY: "{{ api_keys.lidarr }}"
+      LIDARR__AUTH__METHOD: "{{ arr_auth_method }}"
+      LIDARR__AUTH__REQUIRED: DisabledForLocalAddresses
 
 # Add brand-new services here (same schema as above).
 stack_extra_services: {}

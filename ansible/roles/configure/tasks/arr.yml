@@ -1,0 +1,57 @@
+# Radarr, Sonarr or Lidarr (arr_app): root folder + qBittorrent.
+- name: "{{ arr_app }} | settings"
+  ansible.builtin.set_fact:
+    configure_app:
+      url: "{{ configure_local[arr_app] }}"
+      key: "{{ api_keys[arr_app] }}"
+      api: "{{ 'v1' if arr_app == 'lidarr' else 'v3' }}"
+      root: "{{ configure_paths[{'radarr': 'movies', 'sonarr': 'series', 'lidarr': 'music'}[arr_app]] }}"
+      category_field: "{{ {'radarr': 'movieCategory', 'sonarr': 'tvCategory', 'lidarr': 'musicCategory'}[arr_app] }}"
+
+- name: "{{ arr_app }} | wait for API"
+  ansible.builtin.include_tasks: wait_api.yml
+  vars:
+    wait_label: "{{ arr_app }}"
+    wait_url: "{{ configure_app.url }}/api/{{ configure_app.api }}/system/status"
+    wait_headers: { X-Api-Key: "{{ configure_app.key }}" }
+
+- name: "{{ arr_app }} | read root folders"
+  ansible.builtin.uri:
+    url: "{{ configure_app.url }}/api/{{ configure_app.api }}/rootfolder"
+    headers: { X-Api-Key: "{{ configure_app.key }}" }
+  register: configure_rootfolders
+
+- name: "{{ arr_app }} | add root folder {{ configure_app.root }}"
+  ansible.builtin.uri:
+    url: "{{ configure_app.url }}/api/{{ configure_app.api }}/rootfolder"
+    method: POST
+    headers: { X-Api-Key: "{{ configure_app.key }}" }
+    body_format: json
+    body: >-
+      {{ {'path': configure_app.root}
+         | combine({'name': 'Music', 'defaultQualityProfileId': 1, 'defaultMetadataProfileId': 1,
+                    'defaultMonitorOption': 'all', 'defaultNewItemMonitorOption': 'all', 'defaultTags': []}
+                   if arr_app == 'lidarr' else {}) }}
+    status_code: [200, 201]
+  changed_when: true
+  when: configure_app.root not in (configure_rootfolders.json | map(attribute='path') | map('regex_replace', '/$', '') | list)
+
+- name: "{{ arr_app }} | qBittorrent download client"
+  ansible.builtin.include_tasks: arr_resource.yml
+  when: "'qbittorrent' in configure_enabled"
+  vars:
+    arr_url: "{{ configure_app.url }}"
+    arr_key: "{{ configure_app.key }}"
+    arr_api: "{{ configure_app.api }}"
+    arr_resource: downloadclient
+    arr_name: qBittorrent
+    arr_implementation: QBittorrent
+    arr_fields: >-
+      {{ {'host': 'qbittorrent',
+          'port': stack_services.qbittorrent | container_port | int,
+          'username': '',
+          'password': '',
+          configure_app.category_field: download_categories[arr_app]} }}
+    arr_body:
+      enable: true
+      priority: 1

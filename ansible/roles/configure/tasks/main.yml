@@ -1,0 +1,39 @@
+# Wires the running services together. Each step only runs if the services it
+# needs are enabled. To configure a new service, add tasks/<service>.yml and
+# include it below.
+- name: Collect enabled services and URLs
+  ansible.builtin.set_fact:
+    configure_enabled: "{{ stack_enabled_services | map(attribute='key') | list }}"
+    # From the Docker host (where these tasks run).
+    configure_local: "{{ stack_enabled_services | service_urls('127.0.0.1') }}"
+    # Between containers.
+    configure_internal: "{{ stack_enabled_services | service_urls }}"
+    configure_paths: "{{ dict(media_dirs.keys() | zip(media_dirs.values() | map('media_app_path', media_mounts))) }}"
+
+- name: Configure qBittorrent
+  ansible.builtin.include_tasks: qbittorrent.yml
+  when: "'qbittorrent' in configure_enabled"
+
+- name: Configure Radarr / Sonarr / Lidarr
+  ansible.builtin.include_tasks: arr.yml
+  loop: "{{ ['radarr', 'sonarr', 'lidarr'] | intersect(configure_enabled) }}"
+  loop_control:
+    loop_var: arr_app
+
+- name: Configure Prowlarr
+  ansible.builtin.include_tasks: prowlarr.yml
+  when: "'prowlarr' in configure_enabled"
+
+- name: Run Configarr
+  ansible.builtin.include_tasks: configarr.yml
+  when:
+    - configarr_enabled | bool
+    - "['radarr', 'sonarr'] | intersect(configure_enabled) | length > 0"
+
+- name: Configure Bazarr
+  ansible.builtin.include_tasks: bazarr.yml
+  when: "'bazarr' in configure_enabled"
+
+- name: Configure Seerr
+  ansible.builtin.include_tasks: seerr.yml
+  when: "'seerr' in configure_enabled"
