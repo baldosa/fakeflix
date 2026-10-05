@@ -38,7 +38,14 @@
 {%-   set router = {'rule': rule, 'service': name,
                     'entryPoints': ['websecure' if proxy_https | bool else 'web']} -%}
 {%-   if mws -%}{%- set _ = router.update({'middlewares': mws}) -%}{%- endif -%}
-{%-   if proxy_https | bool -%}{%- set _ = router.update({'tls': {'certResolver': 'letsencrypt'}}) -%}{%- endif -%}
+{%-   if proxy_https | bool -%}
+{%-     set tls = {'certResolver': 'letsencrypt'} -%}
+{#-     DNS challenge: every router shares one wildcard certificate. -#}
+{%-     if proxy_acme_challenge == 'dns' -%}
+{%-       set _ = tls.update({'domains': [{'main': proxy_domain, 'sans': ['*.' ~ proxy_domain]}]}) -%}
+{%-     endif -%}
+{%-     set _ = router.update({'tls': tls}) -%}
+{%-   endif -%}
 {%-   set lb = {'servers': [{'url': t.url}], 'passHostHeader': true} -%}
 {%-   if t.insecure | default(false) -%}
 {%-     set _ = transports.update({'insecure': {'insecureSkipVerify': true}}) -%}

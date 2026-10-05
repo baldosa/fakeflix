@@ -69,9 +69,27 @@ proxy_https: false
 ```
 
 1. **DNS:** point `fakeflix.meme.ar` and a wildcard `*.fakeflix.meme.ar` at the container's IP. The wildcard covers `requests.` (Seerr) and any subdomain you add later. Without a wildcard, add each subdomain yourself. LAN-only? Use a local DNS entry (router, Pi-hole, AdGuard) or `/etc/hosts`.
-2. **HTTPS (optional):** set `proxy_https: true` and `proxy_acme_email`, then pick how Let's Encrypt verifies the domain:
-   - `proxy_acme_challenge: http`: port 80 of the domain must be reachable from the internet.
-   - `proxy_acme_challenge: dns`: works for a LAN-only box. Set `proxy_acme_dns_provider` (e.g. `cloudflare`) and its API token in `proxy_acme_env` (e.g. `CF_DNS_API_TOKEN`). The variable names for each provider are listed [here](https://doc.traefik.io/traefik/https/acme/#providers).
+2. **HTTPS with real certificates (DNS validation):** Let's Encrypt checks a TXT record that Traefik creates through your DNS provider's API. Nothing needs to be reachable from the internet, and you get **one wildcard certificate** for `fakeflix.meme.ar` + `*.fakeflix.meme.ar` that covers every folder and subdomain, including ones you add later.
+
+   In `ansible/group_vars/all/proxy.yml`:
+   ```yaml
+   proxy_https: true
+   proxy_acme_email: you@example.com
+   proxy_acme_challenge: dns          # the default
+   proxy_acme_dns_provider: cloudflare
+   ```
+   The provider code and its credential variable names are listed [in the Traefik docs](https://doc.traefik.io/traefik/https/acme/#providers). Put the credentials in a git-ignored secrets file:
+   ```sh
+   cp ansible/group_vars/all/secrets.yml.example ansible/group_vars/all/secrets.yml
+   $EDITOR ansible/group_vars/all/secrets.yml      # proxy_acme_env: {CF_DNS_API_TOKEN: ...}
+   ```
+   For Cloudflare, create an API token with **Zone → DNS → Edit** on your zone. If you'd rather encrypt the file, use `ansible-vault encrypt` and run playbooks with `--ask-vault-pass`.
+
+   Then run `make deploy`. The first certificate takes a minute or two; follow it with `docker logs -f traefik` on the LXC. HTTP is redirected to HTTPS.
+
+   - **Test first (recommended):** set `proxy_acme_staging: true` for a first run. Staging certificates aren't trusted by browsers, but staging has no rate limits. Once it works, set it to `false`, delete `/opt/fakeflix/appdata/traefik/acme.json` and deploy again.
+   - **Split DNS is fine:** if your local DNS points the domain at the LAN IP, that's OK. Traefik checks the TXT record against public resolvers (`proxy_acme_dns_resolvers`, Cloudflare + Quad9 by default), not yours.
+   - Alternatively, `proxy_acme_challenge: http` validates over port 80. That needs every (sub)domain reachable from the internet and gives one certificate per subdomain.
 
 **Why Seerr is on a subdomain:** Seerr has no setting for running under a path, and its UI breaks behind a folder prefix. To use a different name, change `web.subdomain` for Seerr, e.g. via `stack_service_overrides: {seerr: {web: {subdomain: pedir}}}`.
 

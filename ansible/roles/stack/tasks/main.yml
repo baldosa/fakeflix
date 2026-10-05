@@ -4,6 +4,22 @@
       {{ (stack_services | dict2items | rejectattr('value.enabled', 'defined') | list)
          + (stack_services | dict2items | selectattr('value.enabled', 'defined') | selectattr('value.enabled') | list) }}
 
+- name: Check HTTPS settings
+  ansible.builtin.assert:
+    that:
+      - proxy_acme_email | length > 0
+      - proxy_acme_challenge in ['dns', 'http']
+      - proxy_acme_challenge != 'dns' or proxy_acme_dns_provider | length > 0
+      - proxy_acme_challenge != 'dns' or proxy_acme_env | default({}) | length > 0
+    fail_msg: >-
+      proxy_https is on, so set proxy_acme_email, and for proxy_acme_challenge=dns
+      also proxy_acme_dns_provider (proxy.yml) and the provider's credentials in
+      proxy_acme_env (group_vars/all/secrets.yml).
+    quiet: true
+  when:
+    - proxy_https | bool
+    - "'traefik' in stack_enabled_services | map(attribute='key')"
+
 - name: Create stack directory
   ansible.builtin.file:
     path: "{{ stack_dir }}"

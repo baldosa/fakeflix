@@ -9,8 +9,12 @@
 {%-   set _ = cfg.entryPoints.web.update({'http': {'redirections': {'entryPoint': {'to': 'websecure', 'scheme': 'https'}}}}) -%}
 {%-   set _ = cfg.entryPoints.update({'websecure': {'address': ':443'}}) -%}
 {%-   set acme = {'email': proxy_acme_email, 'storage': '/etc/traefik/acme.json'} -%}
+{%-   if proxy_acme_staging | bool -%}
+{%-     set _ = acme.update({'caServer': 'https://acme-staging-v02.api.letsencrypt.org/directory'}) -%}
+{%-   endif -%}
 {%-   if proxy_acme_challenge == 'dns' -%}
-{%-     set _ = acme.update({'dnsChallenge': {'provider': proxy_acme_dns_provider}}) -%}
+{%-     set _ = acme.update({'dnsChallenge': {'provider': proxy_acme_dns_provider,
+                                              'resolvers': proxy_acme_dns_resolvers}}) -%}
 {%-   else -%}
 {%-     set _ = acme.update({'httpChallenge': {'entryPoint': 'web'}}) -%}
 {%-   endif -%}

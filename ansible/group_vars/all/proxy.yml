@@ -15,12 +15,25 @@ proxy_domain: fakeflix.meme.ar
 # true  = HTTPS with Let's Encrypt certificates, HTTP redirects to HTTPS.
 proxy_https: false
 proxy_acme_email: ""
-# http: port 80 must be reachable from the internet for the domain.
-# dns:  works on a LAN-only box; needs your DNS provider's API credentials.
-proxy_acme_challenge: http
+
+# dns:  (recommended) Let's Encrypt checks a TXT record your DNS provider's API
+#       creates. Works on a LAN-only box and gets ONE wildcard certificate for
+#       proxy_domain + *.proxy_domain, so new subdomains need nothing.
+# http: port 80 of every (sub)domain must be reachable from the internet;
+#       one certificate per subdomain.
+proxy_acme_challenge: dns
 # Provider code from https://doc.traefik.io/traefik/https/acme/#providers
 proxy_acme_dns_provider: ""          # e.g. cloudflare
-proxy_acme_env: {}                   # e.g. {CF_DNS_API_TOKEN: "..."}
+# The provider's credentials (env vars named on that page) go in
+# group_vars/all/secrets.yml, which is git-ignored - see secrets.yml.example:
+#   proxy_acme_env:
+#     CF_DNS_API_TOKEN: "..."
+# Public resolvers used to check the TXT record went live. Don't use your
+# LAN DNS here if it overrides proxy_domain locally.
+proxy_acme_dns_resolvers: ["1.1.1.1:53", "9.9.9.9:53"]
+# true = Let's Encrypt *staging* (untrusted certs, no rate limits) for a first
+# test. Switching back to false: delete appdata/traefik/acme.json, re-deploy.
+proxy_acme_staging: false
 
 # Optional HTTP basic auth in front of everything (htpasswd lines, generate
 # with `htpasswd -nbB user password`). Empty = no extra login.

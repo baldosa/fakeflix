@@ -128,7 +128,7 @@ stack_default_services:
     ports:
       - "80:80"
       - "443:443"
-    environment: "{{ proxy_acme_env }}"
+    environment: "{{ proxy_acme_env | default({}) }}"
     templates:
       - { src: traefik/traefik.yml.j2, dest: traefik.yml }
       - { src: traefik/dynamic.yml.j2, dest: dynamic.yml }
