@@ -12,10 +12,10 @@ umask: "002"
 # Media folders on the Docker host (absolute paths, created if missing).
 # Put them wherever you like - different names, different disks, extra folders.
 media_dirs:
-  downloads: /mnt/disk/Downloads
-  movies: /mnt/disk/movies
-  series: /mnt/disk/series
-  music: /mnt/disk/music
+  downloads: /mnt/media/Downloads
+  movies: /mnt/media/movies
+  series: /mnt/media/series
+  music: /mnt/media/music
 
 # How media reaches the apps: host_path: container_path, mounted into every
 # service with `media: true`. Every folder in media_dirs must live under one
@@ -26,10 +26,10 @@ media_dirs:
 # hardlinks / instant moves. If your folders are on different disks, add one
 # entry per disk, e.g.
 #   media_mounts:
-#     /mnt/disk: /data
-#     /mnt/disk2/movies: /data/movies
+#     /mnt/media: /data
+#     /mnt/media2/movies: /data/movies
 media_mounts:
-  /mnt/disk: /data
+  /mnt/media: /data
 
 # Service configuration/databases live here (one sub-directory per service).
 appdata_dir: /opt/fakeflix/appdata
