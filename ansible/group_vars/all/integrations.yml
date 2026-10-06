@@ -19,11 +19,15 @@ api_keys:
 # Use "Forms" to get a login page back (you'll be asked to create a user).
 arr_auth_method: External
 
-# qBittorrent skips the login for clients in these networks.
-qbittorrent_auth_bypass_subnets:
-  - 10.0.0.0/8
-  - 172.16.0.0/12
-  - 192.168.0.0/16
+# --- qBittorrent (runs on its own LXC) ----------------------------------------
+# Added to Radarr/Sonarr as download client when external_services.qbittorrent
+# exists (proxy.yml). Put the login in secrets.yml if its Web UI needs one.
+qbittorrent_url: "{{ external_services.qbittorrent.url | default('') }}"
+qbittorrent_username: ""
+qbittorrent_password: ""
+# The downloads folder as qBittorrent's LXC sees it. Radarr/Sonarr get a remote
+# path mapping from this to media_dirs.downloads.
+qbittorrent_download_path: /mnt/disk/Downloads
 
 # --- Download client ----------------------------------------------------------
 # Categories qBittorrent files downloads under (sub-folders of Downloads).

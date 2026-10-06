@@ -27,22 +27,6 @@
 # ---------------------------------------------------------------------------
 
 stack_default_services:
-  qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent
-    linuxserver: true
-    media: true
-    ports:
-      - "8080:8080"
-      - "6881:6881"
-      - "6881:6881/udp"
-    environment:
-      WEBUI_PORT: "8080"
-      TORRENTING_PORT: "6881"
-    web:
-      path: /qbittorrent
-      strip_prefix: true
-      homepage: { name: qBittorrent, group: Downloads, description: Torrents, widget: qbittorrent }
-
   prowlarr:
     image: lscr.io/linuxserver/prowlarr
     linuxserver: true

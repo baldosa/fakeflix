@@ -1,0 +1,29 @@
+# Your proxy settings: copy to proxy.yml (git-ignored) and edit.
+# Only set what differs from proxy.defaults.yml, where every option is documented.
+# A key here replaces the default entirely (e.g. external_services as a whole).
+
+proxy_domain: fakeflix.example.com
+
+proxy_https: true
+proxy_acme_email: you@example.com
+proxy_acme_dns_provider: cloudflare   # token goes in secrets.yml
+# proxy_acme_staging: true            # first run only
+
+external_services:
+  qbittorrent:                         # also used as Radarr/Sonarr's download client
+    url: http://192.168.1.30:8090
+    path: /qbittorrent
+    strip_prefix: true
+    homepage:
+      name: qBittorrent
+      group: Downloads
+      description: Torrents
+      widget: { type: qbittorrent, username: "{{ qbittorrent_username }}", password: "{{ qbittorrent_password }}" }
+  jellyfin:
+    url: http://192.168.1.20:8096
+    subdomain: jellyfin
+    homepage:
+      name: Jellyfin
+      group: Watch
+      description: Movies & shows
+      widget: { type: jellyfin, key: "{{ jellyfin_api_key }}", enableBlocks: true }   # key in secrets.yml

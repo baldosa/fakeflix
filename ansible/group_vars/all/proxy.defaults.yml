@@ -7,9 +7,14 @@
 #
 # Point a DNS record for proxy_domain AND *.proxy_domain (or at least
 # requests.proxy_domain) at the container's IP.
+#
+# DON'T EDIT THIS FILE for your setup: these are the committed defaults.
+# Override any of them in proxy.yml next to it (git-ignored, loaded after this
+# file because Ansible reads group_vars files in alphabetical order).
+# Start from proxy.yml.example.
 # ---------------------------------------------------------------------------
 
-proxy_domain: fakeflix.meme.ar
+proxy_domain: fakeflix.lan
 
 # false = plain HTTP (fine on a LAN).
 # true  = HTTPS with Let's Encrypt certificates, HTTP redirects to HTTPS.

@@ -34,7 +34,7 @@
 
 - name: "{{ arr_app }} | qBittorrent download client"
   ansible.builtin.include_tasks: arr_resource.yml
-  when: "'qbittorrent' in configure_enabled"
+  when: qbittorrent_url | length > 0
   vars:
     arr_url: "{{ configure_app.url }}"
     arr_key: "{{ configure_app.key }}"
@@ -43,11 +43,41 @@
     arr_name: qBittorrent
     arr_implementation: QBittorrent
     arr_fields: >-
-      {{ {'host': 'qbittorrent',
-          'port': stack_services.qbittorrent | container_port | int,
-          'username': '',
-          'password': '',
+      {{ {'host': qbittorrent_url | urlsplit('hostname'),
+          'port': qbittorrent_url | urlsplit('port') | default(443 if qbittorrent_url.startswith('https') else 80, true) | int,
+          'useSsl': qbittorrent_url.startswith('https'),
+          'username': qbittorrent_username,
+          'password': qbittorrent_password,
           configure_app.category_field: download_categories[arr_app]} }}
     arr_body:
       enable: true
       priority: 1
+
+- name: "{{ arr_app }} | read remote path mappings"
+  ansible.builtin.uri:
+    url: "{{ configure_app.url }}/api/{{ configure_app.api }}/remotepathmapping"
+    headers: { X-Api-Key: "{{ configure_app.key }}" }
+  register: configure_remote_paths
+  when: qbittorrent_url | length > 0
+
+# qBittorrent reports paths as its LXC sees them; translate to ours.
+- name: "{{ arr_app }} | map qBittorrent's downloads folder"
+  ansible.builtin.uri:
+    url: "{{ configure_app.url }}/api/{{ configure_app.api }}/remotepathmapping"
+    method: POST
+    headers: { X-Api-Key: "{{ configure_app.key }}" }
+    body_format: json
+    body:
+      host: "{{ qbittorrent_url | urlsplit('hostname') }}"
+      remotePath: "{{ qbittorrent_download_path.rstrip('/') }}/"
+      localPath: "{{ configure_paths.downloads.rstrip('/') }}/"
+    status_code: [200, 201]
+  changed_when: true
+  when:
+    - qbittorrent_url | length > 0
+    - qbittorrent_download_path.rstrip('/') != configure_paths.downloads.rstrip('/')
+    - >-
+      configure_remote_paths.json
+      | selectattr('host', 'equalto', qbittorrent_url | urlsplit('hostname'))
+      | selectattr('remotePath', 'equalto', qbittorrent_download_path.rstrip('/') ~ '/')
+      | list | length == 0
