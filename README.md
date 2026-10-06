@@ -247,6 +247,13 @@ Then run `make deploy`. Only the config is touched; nothing is restarted except 
 - If the app has a "base URL" setting (Jellyfin: Dashboard → Networking → Base URL), set it to the same path.
 - If it has none, try `strip_prefix: true`. That works for simple apps but breaks apps that use absolute links; use a subdomain for those.
 
+**Proxmox widget** (CPU, memory, running VMs/LXCs on the tile): create a read-only API token on the Proxmox host, put it in `secrets.yml` (`proxmox_token_id: root@pam!homepage`, `proxmox_token_secret: <the value shown>`), and set `node:` in the widget to your node's name:
+
+```sh
+pveum user token add root@pam homepage --privsep 1
+pveum acl modify / --tokens 'root@pam!homepage' --roles PVEAuditor
+```
+
 Widget types and their fields (API keys etc.) are listed at [gethomepage.dev/widgets](https://gethomepage.dev/widgets/). The widget's `url` defaults to the service's `url`.
 
 ## qBittorrent (external LXC)

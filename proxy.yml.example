@@ -27,3 +27,12 @@ external_services:
       group: Watch
       description: Movies & shows
       widget: { type: jellyfin, version: 2, key: "{{ jellyfin_api_key }}", enableBlocks: true }   # key in secrets.yml
+  proxmox:
+    url: https://192.168.1.10:8006
+    subdomain: proxmox
+    insecure: true                     # self-signed certificate
+    homepage:
+      name: Proxmox
+      group: Infra
+      description: Hypervisor
+      widget: { type: proxmox, username: "{{ proxmox_token_id }}", password: "{{ proxmox_token_secret }}", node: pve }   # token in secrets.yml
