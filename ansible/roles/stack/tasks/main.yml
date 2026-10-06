@@ -14,7 +14,7 @@
     fail_msg: >-
       proxy_https is on, so set proxy_acme_email, and for proxy_acme_challenge=dns
       also proxy_acme_dns_provider (proxy.yml) and the provider's credentials in
-      proxy_acme_env (group_vars/all/secrets.yml).
+      proxy_acme_env (secrets.yml at the repo root).
     quiet: true
   when:
     - proxy_https | bool

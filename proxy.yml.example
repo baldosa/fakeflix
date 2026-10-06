@@ -1,5 +1,5 @@
-# Your proxy settings: copy to proxy.yml (git-ignored) and edit.
-# Only set what differs from proxy.defaults.yml, where every option is documented.
+# Your proxy settings: copy to proxy.yml (repo root, git-ignored) and edit.
+# Only set what differs from ansible/group_vars/all/proxy.defaults.yml, where every option is documented.
 # A key here replaces the default entirely (e.g. external_services as a whole).
 
 proxy_domain: fakeflix.example.com

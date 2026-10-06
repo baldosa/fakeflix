@@ -9,9 +9,9 @@
 # requests.proxy_domain) at the container's IP.
 #
 # DON'T EDIT THIS FILE for your setup: these are the committed defaults.
-# Override any of them in proxy.yml next to it (git-ignored, loaded after this
-# file because Ansible reads group_vars files in alphabetical order).
-# Start from proxy.yml.example.
+# Override any of them in proxy.yml at the repo root (git-ignored, symlinked
+# here, loaded after this file because Ansible reads group_vars files in
+# alphabetical order). Start from proxy.yml.example.
 # ---------------------------------------------------------------------------
 
 proxy_domain: fakeflix.lan
@@ -30,7 +30,7 @@ proxy_acme_challenge: dns
 # Provider code from https://doc.traefik.io/traefik/https/acme/#providers
 proxy_acme_dns_provider: ""          # e.g. cloudflare
 # The provider's credentials (env vars named on that page) go in
-# group_vars/all/secrets.yml, which is git-ignored - see secrets.yml.example:
+# secrets.yml at the repo root, which is git-ignored - see secrets.yml.example:
 #   proxy_acme_env:
 #     CF_DNS_API_TOKEN: "..."
 # Public resolvers used to check the TXT record went live. Don't use your

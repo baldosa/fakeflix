@@ -1,8 +1,12 @@
+# Your settings (the symlinks pointing at them are committed)
+/terraform.tfvars
+/proxy.yml
+/secrets.yml
+
 # Terraform
 terraform/.terraform/
 terraform/*.tfstate
 terraform/*.tfstate.*
-terraform/terraform.tfvars
 terraform/crash.log
 
 # Ansible
@@ -14,5 +18,3 @@ ansible/secrets/
 
 # Python
 __pycache__/
-ansible/group_vars/all/secrets.yml
-ansible/group_vars/all/proxy.yml

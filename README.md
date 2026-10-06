@@ -28,6 +28,10 @@ Traefik is the reverse proxy in front of all of it. It runs as one more containe
 - **The Ansible part works without Terraform.** Point the inventory at any Debian or Ubuntu VM, LXC or bare-metal box.
 
 ```
+terraform.tfvars      YOUR Proxmox/LXC settings          (git-ignored)
+proxy.yml             YOUR domain, HTTPS, other machines (git-ignored)
+secrets.yml           YOUR tokens and passwords          (git-ignored)
+                      ^ symlinked from terraform/ and ansible/group_vars/all/
 terraform/            Proxmox LXC + generates ansible/inventory/hosts.yml
 ansible/
   site.yml            full install (idempotent, re-run any time)
@@ -43,14 +47,13 @@ ansible/
   group_vars/all/
     integrations.yml  API keys, logins, indexers, TRaSH templates, subtitles
     proxy.defaults.yml  proxy/homepage defaults (documented)
-    proxy.yml         YOUR domain, HTTPS, other machines (git-ignored)
   templates/          config files rendered for services (Traefik, Homepage)
   secrets/<host>/     generated API keys (git-ignored, keep a backup)
 ```
 
 ## Networking
 
-The container has **one static IP**, which you set in `terraform/terraform.tfvars`:
+The container has **one static IP**, which you set in `terraform.tfvars`:
 
 ```hcl
 ipv4_address = "192.168.1.50/24"   # CIDR
@@ -62,10 +65,10 @@ Terraform also writes that IP into `ansible/inventory/hosts.yml`, which is how A
 
 ## Domain, reverse proxy and HTTPS
 
-Your settings live in `ansible/group_vars/all/proxy.yml`, which is **git-ignored** so your domain and LAN IPs never get committed. Create it from the example; every option is documented in `proxy.defaults.yml`, and anything you set in `proxy.yml` overrides it:
+Your settings live in `proxy.yml` at the repo root, which is **git-ignored** so your domain and LAN IPs never get committed. Create it from the example; every option is documented in `ansible/group_vars/all/proxy.defaults.yml`, and anything you set in `proxy.yml` overrides it:
 
 ```sh
-cp ansible/group_vars/all/proxy.yml.example ansible/group_vars/all/proxy.yml
+cp proxy.yml.example proxy.yml
 ```
 
 
@@ -77,7 +80,7 @@ proxy_https: false
 1. **DNS:** point `fakeflix.meme.ar` and a wildcard `*.fakeflix.meme.ar` at the container's IP. The wildcard covers `requests.` (Seerr) and any subdomain you add later. Without a wildcard, add each subdomain yourself. LAN-only? Use a local DNS entry (router, Pi-hole, AdGuard) or `/etc/hosts`.
 2. **HTTPS with real certificates (DNS validation):** Let's Encrypt checks a TXT record that Traefik creates through your DNS provider's API. Nothing needs to be reachable from the internet, and you get **one wildcard certificate** for `fakeflix.meme.ar` + `*.fakeflix.meme.ar` that covers every folder and subdomain, including ones you add later.
 
-   In `ansible/group_vars/all/proxy.yml`:
+   In `proxy.yml`:
    ```yaml
    proxy_https: true
    proxy_acme_email: you@example.com
@@ -86,8 +89,8 @@ proxy_https: false
    ```
    The provider code and its credential variable names are listed [in the Traefik docs](https://doc.traefik.io/traefik/https/acme/#providers). Put the credentials in a git-ignored secrets file:
    ```sh
-   cp ansible/group_vars/all/secrets.yml.example ansible/group_vars/all/secrets.yml
-   $EDITOR ansible/group_vars/all/secrets.yml      # proxy_acme_env: {CF_DNS_API_TOKEN: ...}
+   cp secrets.yml.example secrets.yml
+   $EDITOR secrets.yml      # proxy_acme_env: {CF_DNS_API_TOKEN: ...}
    ```
    For Cloudflare, create an API token with **Zone → DNS → Edit** on your zone. If you'd rather encrypt the file, use `ansible-vault encrypt` and run playbooks with `--ask-vault-pass`.
 
@@ -156,8 +159,8 @@ App configs and databases are stored in `/opt/fakeflix/appdata/<service>` inside
 ### 1. Create the container
 
 ```sh
-cp terraform/terraform.tfvars.example terraform/terraform.tfvars
-$EDITOR terraform/terraform.tfvars
+cp terraform.tfvars.example terraform.tfvars
+$EDITOR terraform.tfvars
 make infra
 ```
 
@@ -216,7 +219,7 @@ If an indexer can't be reached, the deploy prints a warning and carries on.
 
 ## Services on other machines
 
-Anything else you run (Jellyfin on another LXC, the Proxmox UI, your router…) can be added in `ansible/group_vars/all/proxy.yml`. Each entry gets a homepage tile; give it a `path` or `subdomain` and Traefik serves it on your domain too:
+Anything else you run (Jellyfin on another LXC, the Proxmox UI, your router…) can be added in `proxy.yml`. Each entry gets a homepage tile; give it a `path` or `subdomain` and Traefik serves it on your domain too:
 
 ```yaml
 external_services:
