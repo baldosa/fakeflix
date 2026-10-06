@@ -1,3 +1,6 @@
+# Ansible refuses to start with a locale the machine lacks (e.g. one forwarded over SSH).
+export LC_ALL := C.UTF-8
+
 TF      := terraform -chdir=terraform
 ANSIBLE := cd ansible &&
 
