@@ -1,4 +1,6 @@
+# Always: the configure role needs this too (e.g. --tags configure).
 - name: Select enabled services
+  tags: [always]
   ansible.builtin.set_fact:
     stack_enabled_services: >-
       {{ (stack_services | dict2items | rejectattr('value.enabled', 'defined') | list)
