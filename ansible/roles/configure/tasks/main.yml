@@ -17,10 +17,6 @@
          else stack_enabled_services | service_urls(ansible_host | default(inventory_hostname)) }}
     configure_paths: "{{ dict(media_dirs.keys() | zip(media_dirs.values() | map('media_app_path', media_mounts))) }}"
 
-- name: Configure qBittorrent
-  ansible.builtin.include_tasks: qbittorrent.yml
-  when: "'qbittorrent' in configure_enabled"
-
 - name: Configure Radarr / Sonarr
   ansible.builtin.include_tasks: arr.yml
   loop: "{{ ['radarr', 'sonarr'] | intersect(configure_enabled) }}"

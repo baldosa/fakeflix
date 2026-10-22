@@ -7,7 +7,6 @@
 {%-   if hp.widget is defined -%}
 {%-     set widget = {'type': hp.widget, 'url': internal[item.key] | default('http://' ~ item.key)} -%}
 {%-     if item.key in api_keys -%}{%- set _ = widget.update({'key': api_keys[item.key]}) -%}{%- endif -%}
-{%-     if hp.widget == 'qbittorrent' -%}{%- set _ = widget.update({'username': '', 'password': ''}) -%}{%- endif -%}
 {%-   endif -%}
 {%-   set _ = tiles.append({'key': item.key, 'hp': hp, 'widget': widget,
                             'href': item.value | public_url(proxy_domain, proxy_scheme)}) -%}

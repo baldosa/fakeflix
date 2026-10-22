@@ -5,7 +5,7 @@
     that: jellyfin_api_key | default('') | length > 0
     fail_msg: >-
       jellyfin_url is set but jellyfin_api_key isn't. Create one in Jellyfin
-      (Dashboard -> API Keys) and put it in group_vars/all/secrets.yml.
+      (Dashboard -> API Keys) and put it in secrets.yml (repo root).
     quiet: true
 
 - name: Jellyfin | parse URL
@@ -32,8 +32,9 @@
       apiKey: "{{ jellyfin_api_key }}"
       updateLibrary: true
       notify: false
-      mapFrom: "{{ jellyfin_path_map.from if jellyfin_path_map.to else '' }}"
-      mapTo: "{{ jellyfin_path_map.to }}"
+      # No mapping needed when both sides use the same path.
+      mapFrom: "{{ jellyfin_path_map.from if jellyfin_path_map.to != jellyfin_path_map.from else '' }}"
+      mapTo: "{{ jellyfin_path_map.to if jellyfin_path_map.to != jellyfin_path_map.from else '' }}"
     # Keys an app doesn't have are ignored (e.g. Radarr has no onSeriesDelete).
     arr_body:
       onDownload: true

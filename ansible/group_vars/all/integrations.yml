@@ -19,11 +19,15 @@ api_keys:
 # Use "Forms" to get a login page back (you'll be asked to create a user).
 arr_auth_method: External
 
-# qBittorrent skips the login for clients in these networks.
-qbittorrent_auth_bypass_subnets:
-  - 10.0.0.0/8
-  - 172.16.0.0/12
-  - 192.168.0.0/16
+# --- qBittorrent (runs on its own LXC) ----------------------------------------
+# Added to Radarr/Sonarr as download client when external_services.qbittorrent
+# exists (proxy.yml). Put the login in secrets.yml if its Web UI needs one.
+qbittorrent_url: "{{ external_services.qbittorrent.url | default('') }}"
+qbittorrent_username: ""
+qbittorrent_password: ""
+# The downloads folder as qBittorrent's LXC sees it. Radarr/Sonarr get a remote
+# path mapping from this to media_dirs.downloads.
+qbittorrent_download_path: /mnt/disk/Downloads
 
 # --- Download client ----------------------------------------------------------
 # Categories qBittorrent files downloads under (sub-folders of Downloads).
@@ -79,16 +83,16 @@ bazarr_providers:
 # --- Seerr --------------------------------------------------------------------
 seerr_minimum_availability: released
 
-# --- Jellyfin (runs elsewhere) -----------------------------------------------
-# Sonarr/Radarr tell Jellyfin to rescan right after each import, so new
-# episodes/movies show up in seconds instead of at the next scheduled scan.
-# Empty URL = skip. Put jellyfin_api_key in group_vars/all/secrets.yml
-# (Jellyfin: Dashboard -> API Keys -> +).
-jellyfin_url: ""                 # e.g. http://192.168.1.20:8096
-# Sonarr/Radarr see the media under /data; tell them where Jellyfin sees the
-# same folders. Check Jellyfin: Dashboard -> Libraries -> your Shows library.
-# If it shows /mnt/disk/series, set to: /mnt/disk. Leave "" if it's /data too.
+# --- Jellyfin (runs on its own LXC/VM) -----------------------------------------
+# Sonarr/Radarr tell Jellyfin to rescan a show's/movie's folder right after each
+# import, instead of waiting for Jellyfin's scheduled scan (12 h by default).
+# On when external_services.jellyfin exists (proxy.yml) and jellyfin_api_key is
+# in secrets.yml.
+jellyfin_url: "{{ external_services.jellyfin.url | default('') }}"
+# Sonarr/Radarr see the media under /data, Jellyfin under its own path. Default:
+# Jellyfin bind-mounts the same disk at the same path as the Proxmox host
+# (/data -> /mnt/disk). Override in proxy.yml if its libraries point elsewhere
+# (Jellyfin: Dashboard -> Libraries; the Shows folder must be <to>/series).
 jellyfin_path_map:
-  from: /data
-  to: ""
-
+  from: "{{ (media_mounts | dict2items | first).value }}"
+  to: "{{ (media_mounts | dict2items | first).key }}"
