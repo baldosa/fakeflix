@@ -78,3 +78,17 @@ bazarr_providers:
 
 # --- Seerr --------------------------------------------------------------------
 seerr_minimum_availability: released
+
+# --- Jellyfin (runs elsewhere) -----------------------------------------------
+# Sonarr/Radarr tell Jellyfin to rescan right after each import, so new
+# episodes/movies show up in seconds instead of at the next scheduled scan.
+# Empty URL = skip. Put jellyfin_api_key in group_vars/all/secrets.yml
+# (Jellyfin: Dashboard -> API Keys -> +).
+jellyfin_url: ""                 # e.g. http://192.168.1.20:8096
+# Sonarr/Radarr see the media under /data; tell them where Jellyfin sees the
+# same folders. Check Jellyfin: Dashboard -> Libraries -> your Shows library.
+# If it shows /mnt/disk/series, set to: /mnt/disk. Leave "" if it's /data too.
+jellyfin_path_map:
+  from: /data
+  to: ""
+

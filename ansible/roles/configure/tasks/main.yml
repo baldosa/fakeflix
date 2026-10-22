@@ -37,6 +37,10 @@
     - configarr_enabled | bool
     - "['radarr', 'sonarr'] | intersect(configure_enabled) | length > 0"
 
+- name: Connect Sonarr / Radarr to Jellyfin
+  ansible.builtin.include_tasks: jellyfin.yml
+  when: jellyfin_url | default('') | length > 0
+
 - name: Configure Bazarr
   ansible.builtin.include_tasks: bazarr.yml
   when: "'bazarr' in configure_enabled"

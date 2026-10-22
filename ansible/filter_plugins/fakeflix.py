@@ -130,7 +130,8 @@ def arr_differs(current, desired):
                     continue
                 if cur != field.get("value") and not (cur in (None, "") and field.get("value") in (None, "")):
                     return True
-        elif current.get(key) != value:
+        elif key in current and current[key] != value:
+            # keys the app doesn't know (e.g. Radarr has no onSeriesDelete) are ignored
             return True
     return False
 

@@ -209,6 +209,32 @@ If an indexer can't be reached, the deploy prints a warning and carries on.
 
 **API keys** are generated on the first run and stored in `ansible/secrets/<host>/`. That folder is git-ignored, so back it up. If you lose it, the next deploy creates new keys and re-wires everything; add `-e configure_force=true` to push them to every app.
 
+## Jellyfin
+
+Jellyfin runs elsewhere, so two things have to line up: it must **see the same files**, and it must **be told when new ones arrive**.
+
+1. **Same files:** Jellyfin's machine needs the media disk too. For a Jellyfin LXC on the same Proxmox host, add a bind mount, e.g. `pct set <jellyfin-id> -mp0 /mnt/disk,mp=/mnt/disk`. Its libraries point at the folders: Shows → `/mnt/disk/series`, Movies → `/mnt/disk/movies`.
+2. **Instant updates:** set this in `ansible/group_vars/all/integrations.yml`, then run `make deploy`:
+   ```yaml
+   jellyfin_url: http://192.168.1.20:8096
+   jellyfin_path_map:
+     from: /data          # how Sonarr/Radarr see the media
+     to: /mnt/disk        # how Jellyfin sees the same folder
+   ```
+   Put the key in `group_vars/all/secrets.yml` as `jellyfin_api_key: ...`; create it in Jellyfin under Dashboard → API Keys. Sonarr and Radarr then ask Jellyfin to rescan the show's or movie's folder after every import, upgrade, rename or delete. New episodes appear about a minute later, which is Jellyfin's built-in settle delay.
+
+Without step 2, Jellyfin only finds new files during its scheduled scan (every 12 h by default). Its real-time file watching often doesn't fire on bind-mounted or network folders.
+
+### Downloaded, in Sonarr, but not in Jellyfin?
+
+Check in this order:
+
+1. **Was it imported?** Sonarr → Activity → Queue should be empty for it, and the files must be under `/mnt/disk/series/<Show>/`, not still in `Downloads`. An item stuck with a warning icon means the import failed; hover the icon for the reason.
+2. **Can Jellyfin see the files?** In Jellyfin, Dashboard → Libraries → Shows: is the folder really the series folder as seen from Jellyfin's machine? On that machine run `ls "/mnt/disk/series/<Show>/Season 01"`.
+3. **Has it scanned?** Dashboard → Libraries → **Scan All Libraries**. If it shows up now, step 2 above wasn't set up, or `jellyfin_path_map.to` is wrong. The `to` path plus `/series` must be exactly the Shows library's folder.
+
+Seerr marks the request as *Available* once Jellyfin has it; Seerr checks Jellyfin every few minutes.
+
 ## Services on other machines
 
 Anything else you run (Jellyfin on another LXC, the Proxmox UI, your router…) can be added in `ansible/group_vars/all/proxy.yml`. Each entry gets a homepage tile; give it a `path` or `subdomain` and Traefik serves it on your domain too:

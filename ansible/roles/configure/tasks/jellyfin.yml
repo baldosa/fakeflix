@@ -1,0 +1,48 @@
+# Sonarr/Radarr -> Settings -> Connect -> "Emby / Jellyfin": after every
+# import/upgrade/rename/delete, ask Jellyfin to rescan that folder.
+- name: Jellyfin | check settings
+  ansible.builtin.assert:
+    that: jellyfin_api_key | default('') | length > 0
+    fail_msg: >-
+      jellyfin_url is set but jellyfin_api_key isn't. Create one in Jellyfin
+      (Dashboard -> API Keys) and put it in group_vars/all/secrets.yml.
+    quiet: true
+
+- name: Jellyfin | parse URL
+  ansible.builtin.set_fact:
+    configure_jellyfin: "{{ jellyfin_url | urlsplit }}"
+
+- name: Jellyfin | library update notification
+  ansible.builtin.include_tasks: arr_resource.yml
+  loop: "{{ ['radarr', 'sonarr'] | intersect(configure_enabled) }}"
+  loop_control:
+    loop_var: jellyfin_app
+  vars:
+    arr_url: "{{ configure_local[jellyfin_app] }}"
+    arr_key: "{{ api_keys[jellyfin_app] }}"
+    arr_api: v3
+    arr_resource: notification
+    arr_name: Jellyfin
+    arr_implementation: MediaBrowser
+    arr_fields:
+      host: "{{ configure_jellyfin.hostname }}"
+      port: "{{ (configure_jellyfin.port or (443 if configure_jellyfin.scheme == 'https' else 80)) | int }}"
+      useSsl: "{{ configure_jellyfin.scheme == 'https' }}"
+      urlBase: "{{ configure_jellyfin.path.rstrip('/') }}"
+      apiKey: "{{ jellyfin_api_key }}"
+      updateLibrary: true
+      notify: false
+      mapFrom: "{{ jellyfin_path_map.from if jellyfin_path_map.to else '' }}"
+      mapTo: "{{ jellyfin_path_map.to }}"
+    # Keys an app doesn't have are ignored (e.g. Radarr has no onSeriesDelete).
+    arr_body:
+      onDownload: true
+      onUpgrade: true
+      onImportComplete: true
+      onRename: true
+      onSeriesDelete: true
+      onEpisodeFileDelete: true
+      onEpisodeFileDeleteForUpgrade: true
+      onMovieDelete: true
+      onMovieFileDelete: true
+      onMovieFileDeleteForUpgrade: true
