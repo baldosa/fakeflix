@@ -21,15 +21,13 @@ media_dirs:
 # service with `media: true`. Every folder in media_dirs must live under one
 # of these.
 #
-# Default: the common parent mounted once at /data, so the apps see
-# /data/Downloads, /data/movies, ... Downloads and library on the same mount =
-# hardlinks / instant moves. If your folders are on different disks, add one
-# entry per disk, e.g.
-#   media_mounts:
-#     /mnt/media: /data
-#     /mnt/media2/movies: /data/movies
+# Default: mounted at the SAME path inside the containers, so every app
+# (and anything outside Docker, like Jellyfin or an external qBittorrent)
+# sees identical paths - no remote path mappings needed. One mount for
+# Downloads and library = hardlinks / instant moves. Another disk = another
+# entry, e.g. /mnt/media2: /mnt/media2
 media_mounts:
-  /mnt/media: /data
+  /mnt/media: /mnt/media
 
 # Service configuration/databases live here (one sub-directory per service).
 appdata_dir: /opt/fakeflix/appdata

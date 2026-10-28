@@ -25,9 +25,9 @@ arr_auth_method: External
 qbittorrent_url: "{{ external_services.qbittorrent.url | default('') }}"
 qbittorrent_username: ""
 qbittorrent_password: ""
-# The downloads folder as qBittorrent's LXC sees it. Radarr/Sonarr get a remote
-# path mapping from this to media_dirs.downloads.
-qbittorrent_download_path: /mnt/disk/Downloads
+# The downloads folder as qBittorrent's LXC sees it. Only if it differs from
+# media_dirs.downloads do Radarr/Sonarr get a remote path mapping.
+qbittorrent_download_path: "{{ media_dirs.downloads }}"
 
 # --- Download client ----------------------------------------------------------
 # Categories qBittorrent files downloads under (sub-folders of Downloads).

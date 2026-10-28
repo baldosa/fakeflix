@@ -142,7 +142,7 @@ variable "media_mounts" {
   EOT
   type        = map(string)
   default = {
-    "/mnt/disk" = "/mnt/disk"
+    "/mnt/media" = "/mnt/media"
   }
 }
 
