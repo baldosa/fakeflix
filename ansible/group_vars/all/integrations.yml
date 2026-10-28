@@ -89,9 +89,9 @@ seerr_minimum_availability: released
 # On when external_services.jellyfin exists (proxy.yml) and jellyfin_api_key is
 # in secrets.yml.
 jellyfin_url: "{{ external_services.jellyfin.url | default('') }}"
-# Sonarr/Radarr see the media under /data, Jellyfin under its own path. Default:
-# Jellyfin bind-mounts the same disk at the same path as the Proxmox host
-# (/data -> /mnt/disk). Override in proxy.yml if its libraries point elsewhere
+# Only needed if Jellyfin sees the media under another path than Sonarr/Radarr.
+# Default: derived from media_mounts; same path on both sides = no mapping.
+# Override in proxy.yml if its libraries point elsewhere
 # (Jellyfin: Dashboard -> Libraries; the Shows folder must be <to>/series).
 jellyfin_path_map:
   from: "{{ (media_mounts | dict2items | first).value }}"

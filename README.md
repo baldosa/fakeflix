@@ -221,12 +221,12 @@ If an indexer can't be reached, the deploy prints a warning and carries on.
 
 Jellyfin runs elsewhere, so two things have to line up: it must **see the same files**, and it must **be told when new ones arrive**.
 
-1. **Same files:** Jellyfin's machine needs the media disk too. For a Jellyfin LXC on the same Proxmox host, add a bind mount, e.g. `pct set <jellyfin-id> -mp0 /mnt/disk,mp=/mnt/disk`. Its libraries point at the folders: Shows → `/mnt/disk/series`, Movies → `/mnt/disk/movies`.
+1. **Same files:** Jellyfin's machine needs the media disk too. For a Jellyfin LXC on the same Proxmox host, add a bind mount, e.g. `pct set <jellyfin-id> -mp0 /mnt/media,mp=/mnt/media`. Its libraries point at the folders: Shows → `/mnt/media/series`, Movies → `/mnt/media/movies`.
 2. **Instant updates:** this switches on automatically once `jellyfin` is in `external_services` (`proxy.yml`) and `jellyfin_api_key` is in `secrets.yml`. Both are already needed for the homepage widget. Sonarr and Radarr then get an *Emby / Jellyfin* connection and ask Jellyfin to rescan the show's or movie's folder after every import, upgrade, rename or delete. New episodes appear about a minute later, which is Jellyfin's built-in settle delay.
 
-   Paths: Sonarr and Radarr see the media under `/data`, and by default they assume Jellyfin sees it under `/mnt/disk`, i.e. the disk mounted at the same path as on the Proxmox host. If your Jellyfin libraries point elsewhere, override it in `proxy.yml`:
+   Paths: Sonarr and Radarr see the media at the same paths as the host (`/mnt/media/...`) and assume Jellyfin does too. If your Jellyfin libraries point elsewhere, override it in `proxy.yml`:
    ```yaml
-   jellyfin_path_map: { from: /data, to: /media }   # Jellyfin's Shows library = /media/series
+   jellyfin_path_map: { from: /mnt/media, to: /media }   # Jellyfin's Shows library = /media/series
    ```
 
 Without step 2, Jellyfin only finds new files during its scheduled scan (every 12 h by default). Its real-time file watching often doesn't fire on bind-mounted or network folders.
@@ -235,8 +235,8 @@ Without step 2, Jellyfin only finds new files during its scheduled scan (every 1
 
 Check in this order:
 
-1. **Was it imported?** Sonarr → Activity → Queue should be empty for it, and the files must be under `/mnt/disk/series/<Show>/`, not still in `Downloads`. An item stuck with a warning icon means the import failed; hover the icon for the reason.
-2. **Can Jellyfin see the files?** In Jellyfin, Dashboard → Libraries → Shows: is the folder really the series folder as seen from Jellyfin's machine? On that machine run `ls "/mnt/disk/series/<Show>/Season 01"`.
+1. **Was it imported?** Sonarr → Activity → Queue should be empty for it, and the files must be under `/mnt/media/series/<Show>/`, not still in `Downloads`. An item stuck with a warning icon means the import failed; hover the icon for the reason.
+2. **Can Jellyfin see the files?** In Jellyfin, Dashboard → Libraries → Shows: is the folder really the series folder as seen from Jellyfin's machine? On that machine run `ls "/mnt/media/series/<Show>/Season 01"`.
 3. **Has it scanned?** Dashboard → Libraries → **Scan All Libraries**. If it shows up now, the automatic update isn't working. Check that Sonarr → Settings → Connect has a *Jellyfin* entry whose *Test* passes, and that `jellyfin_path_map.to` plus `/series` is exactly the Shows library's folder.
 
 Seerr marks the request as *Available* once Jellyfin has it; Seerr checks Jellyfin every few minutes.
